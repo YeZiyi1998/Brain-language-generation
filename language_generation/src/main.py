@@ -20,14 +20,7 @@ if __name__ == '__main__':
         if key not in ['cuda']:
             save_name += key+'('+str(args[key])+')_'
     save_name = save_name[:-1]
-    if args['method'] == 'encoding':
-        from encoding_model_1025 import Encoding_model
-        decoding_model = Encoding_model(args)
-    elif args['method'] == 'encoding_word':
-        from encoding_model_word_1025 import Encoding_model_word
-        decoding_model = Encoding_model_word(args)
-    else:
-        decoding_model = None
+    decoding_model = None
     dataset_class = ROI_dataset if len(args['roi_selected']) > 0 else FMRI_dataset
 
     if 'ds003020' in args['task_name']:

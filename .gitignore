@@ -10,4 +10,5 @@ slurm-*.out
 wandb/
 .ipynb_checkpoints/
 .vscode
-language_generation/scripts/settings.py
+language_generation/src/settings.py
+language_generation/results/*
