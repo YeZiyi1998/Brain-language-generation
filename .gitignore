@@ -1,0 +1,13 @@
+dataset/
+*.pt
+__pycache__/
+github/
+*.pkl
+*.pickle
+*.hf5
+wandb/
+slurm-*.out
+wandb/
+.ipynb_checkpoints/
+.vscode
+language_generation/scripts/settings.py
