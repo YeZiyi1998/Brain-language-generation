@@ -1,6 +1,6 @@
 # Language Generation from Brain Recordings
 
-<img src="./figures/model_structure2.pdf" alt="Logo" height="80%">
+<img src="./figures/model_structure2.jpg" alt="Logo" height="80%">
 
 <p align="left">
     <a href="https://github.com/YeZiyi1998/Brain-language-generation">
