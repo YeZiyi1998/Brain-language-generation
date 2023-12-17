@@ -123,7 +123,7 @@ python language_generation/src/post_hoc_evaluatoion.py
 ```
 
 ### Dataset
-We test our approach on three public fMRI datasets: [Pereira's dataset]((https://www.nature.com/articles/s41467-018-03068-4)), [Huth's dataset]((https://www.nature.com/articles/s41597-023-02437-z)), and [Narratives dataset]((https://www.nature.com/articles/s41597-021-01033-3)). The brief introduction, ethical information, statistics, and useage details of these datasets are provied in our paper.
+We test our approach on three public fMRI datasets: [Pereira's dataset](https://www.nature.com/articles/s41467-018-03068-4), [Huth's dataset]((https://www.nature.com/articles/s41597-023-02437-z)), and [Narratives dataset]((https://www.nature.com/articles/s41597-021-01033-3)). The brief introduction, ethical information, statistics, and useage details of these datasets are provied in our paper.
 A preprocessed verison dataset is released in [Tsinghua Cloud]((https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/)), where the sub-directory of *Pereira*, *Huth*, and *Narratives* contain the preprocessed data for each participant and story in Pereira's dataset, Huth's dataset, and Narratives dataset, respectively. 
 
 ### Experimental results
