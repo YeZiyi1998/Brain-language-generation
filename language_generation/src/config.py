@@ -35,7 +35,6 @@ def get_config():
     parser.add_argument('-lr',  type = float, default = 1e-3, required=False)
     parser.add_argument('-dropout',  type = float, default = 0.5, required=False)
     parser.add_argument('-checkpoint_path', default = "" ,required=False)
-    parser.add_argument('-without_input', default = "False" ,required=False)
     parser.add_argument('-load_check_point', default = "False" ,required=False)
     parser.add_argument('-enable_grad', default = "False" ,required=False)
     parser.add_argument('-mode', default = "train" , choices = ['train','evaluate', 'all',],required=False)
@@ -57,25 +56,21 @@ def get_config():
     parser.add_argument('-num_layers', default = 2, type=int, required=False)
     parser.add_argument('-evaluate_log', default = 'False', required=False)
     parser.add_argument('-normalized', default = 'False', required=False)
-    parser.add_argument('-input_method', default = "normal" , choices = ["normal", "permutated", "mask_input", ],required=False)
+    parser.add_argument('-input_method', default = "normal" , choices = ["normal", "permutated", 'without_brain', 'without_text'],required=False)
     parser.add_argument('-activation', default = "relu" , choices = ["relu",'sigmoid','tanh','relu6'],required=False)
     parser.add_argument('-pretrain_epochs', default = 0, type=int,required=False)
     parser.add_argument('-pretrain_lr', default = 0.001, type=float,required=False)
     parser.add_argument('-data_size', default = -1, type=int,required=False)
-    parser.add_argument('-without_text', default = "False", type=str,required=False)
     parser.add_argument('-results_path', default = 'results', type=str,required=False)
-    parser.add_argument('-story_size', default = -1, type=int,required=False)
     parser.add_argument('-dataset_path', default = '../../example_dataset/', type=str,required=False)
     parser.add_argument('-shuffle_times', default = -1, type=int,required=False)
     args = vars(parser.parse_args())
     args['fmri_pca'] = args['fmri_pca'] == 'True'
-    args['without_input'] = args['without_input'] == 'True'
     args['load_check_point'] = args['load_check_point'] == 'True'
     args['enable_grad'] = args['enable_grad'] == 'True'
     args['add_end'] = args['add_end'] == 'True'
     args['context'] = args['context'] == 'True'
     args['pos'] = args['pos'] == 'True'
-    args['without_text'] = args['without_text'] == 'True'
     args['normalized'] = args['normalized'] == 'True'
     args['evaluate_log'] = args['evaluate_log'] == 'True'
     args['roi_selected'] = json.loads(args['roi_selected'])

@@ -27,34 +27,32 @@ if __name__ == '__main__':
         dataset_name = args['task_name'].split('_')[0]
         subject_name = args['task_name'].split('_')[1]
         if args['fmri_pca']:
-            input_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.pca1000.wq.pkl','rb'))
             args['brain_embed_size'] = 1000
         else:
-            input_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.wq.pkl','rb'))
-            args['brain_embed_size'] = input_dataset[0]['word'][0]['additional'].shape
+            print('Please specify dimension of brain input!')
+        input_dataset = pickle.load(open(f'{dataset_path}{subject_name}.wq.pkl','rb'))
         decoding_model = Decoding_model(args)
         dataset = dataset_class(input_dataset, args, tokenizer = decoding_model.tokenizer, decoding_model = decoding_model)
     elif 'Pereira' in args['task_name']:
         dataset_name = args['task_name'].split('_')[0]
         subject_name = args['task_name'].split('_')[1]
-        input_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.wq.pkl','rb'))
+        input_dataset = pickle.load(open(f'{dataset_path}{subject_name}.wq.pkl','rb'))
         if args['fmri_pca']:
             args['brain_embed_size'] = 1000
         else:
-            input_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.wq.pkl','rb'))
-            args['brain_embed_size'] = input_dataset[0]['word'][0]['additional'].shape
+            print('Please specify dimension of brain input!')
         decoding_model = Decoding_model(args)
         dataset = dataset_class(input_dataset, args, tokenizer = decoding_model.tokenizer, decoding_model = decoding_model)
     elif 'Narratives' in args['task_name']:
-        u2s = json.load(open('{dataset_path}Narratives/u2s.json'))
-        args['Narratives_stories'] = u2s[f'sub-{args["task_name"].split("_")[2]}']
+        u2s = json.load(open(f'../dataset_info/u2s.json'))
+        args['Narratives_stories'] = u2s[f'sub-{args["task_name"].split("_")[1]}']
         input_dataset = {}
         for story_name in args['Narratives_stories']:
-            input_dataset[story_name] = pickle.load(open(f'{dataset_path}/{story_name}.wq.pkl','rb'))
+            input_dataset[story_name] = pickle.load(open(f'{dataset_path}{story_name}.wq.pkl','rb'))
         if args['fmri_pca']:
             args['brain_embed_size'] = 1000
         else:
-            args['brain_embed_size'] = input_dataset[0]['word'][0]['additional'].shape
+           print('Please specify dimension of brain input!')
         decoding_model = Decoding_model(args)
         dataset = dataset_class(input_dataset, args, tokenizer = decoding_model.tokenizer, decoding_model = decoding_model)
 

@@ -14,3 +14,4 @@ wandb/
 language_generation/src/settings.py
 language_generation/results/*
 slurm-*.out
+.DS_Store

@@ -101,7 +101,7 @@ class FMRI_dataset():
         self.tokenizer = tokenizer
         if 'Pereira' in args['task_name']:
             dataset_name, subject_name = args['task_name'].split('_')
-            pere_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}/{subject_name}.wq.pkl.dic','rb'))
+            pere_dataset = pickle.load(open(f'{dataset_path}{subject_name}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}{subject_name}.wq.pkl.dic','rb'))
             if args['normalized']:
                 self.normalized(pere_dataset)
             for story in input_dataset.keys():
@@ -112,17 +112,15 @@ class FMRI_dataset():
                         content_true = item['word'][k]['content']
                         if args['add_end']:
                             content_true += '<|endoftext|>'
-                        # 如果是ds，需要去下载一下
                         random_number = random.random()
                         packed_info = self.pack_info(content_prev, additional_bs, content_true, random_number)
                         if torch.sum(packed_info['content_true_mask']) > 0:
                             self.inputs.append(packed_info)   
         elif 'Narratives' in args['task_name']:
-            subject_name = args['task_name'].split('_')[2]
+            subject_name = args['task_name'].split('_')[1]
             content_true2idx = {}
             for story in args['Narratives_stories']:
-                Narratives_dataset = pickle.load(open(f'{dataset_path}Narratives/{story}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}Narratives/{story}.wq.pkl.dic','rb'))
-                # cross-subject and cross-story
+                Narratives_dataset = pickle.load(open(f'{dataset_path}{story}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}{story}.wq.pkl.dic','rb'))
                 for subject in [f'sub-{subject_name}']:
                     for item_id, item in enumerate(input_dataset[story][subject]):
                         sid = int(subject.split('-')[1])
@@ -137,21 +135,15 @@ class FMRI_dataset():
                             random_number = random.random()
                             if content_true not in content_true2idx.keys():
                                 content_true2idx[content_true] = random_number
-                            if args['data_spliting'] == 'cross_story':
-                                packed_info = self.pack_info(content_prev, additional_bs, content_true, 1 if story == args['Narratives_test_story'] else 0) # 1 item['trail_id']
-                            else:
-                                # 1001
-                                packed_info = self.pack_info(content_prev, additional_bs, content_true, content_true2idx[content_true])
-                                # packed_info = (self.pack_info(content_prev, additional_bs, content_true, 1 if item_id > len(input_dataset[story][subject]) / 5 * 4 else 0)) 
+                            packed_info = self.pack_info(content_prev, additional_bs, content_true, content_true2idx[content_true])
                             if len(packed_info['content_true']) > 0 and len(packed_info['content_prev']) > 0:
                                 self.inputs.append(packed_info)
-            random.shuffle(self.inputs)
-            self.inputs = self.inputs[:15000]
         elif 'Huth' in args['task_name']:
             dataset_name = args['task_name'].split('_')[0]
             subject_name = args['task_name'].split('_')[1]
             data_info2 = json.load(open('../dataset_info/Huth.json'))
-            ds_dataset = pickle.load(open(f'{dataset_path}{dataset_name}/{subject_name}.pca1000.wq.pkl.dic','rb'))
+            data_info2random_number = [0.2 * i for i in range(len(data_info2))]
+            ds_dataset = pickle.load(open(f'{dataset_path}{subject_name}.pca1000.wq.pkl.dic','rb'))
             content_true2idx = {}
             for sid, story in enumerate(input_dataset.keys()):
                 if story not in data_info2:
@@ -168,7 +160,7 @@ class FMRI_dataset():
                         if args['add_end']:
                             content_true += '<|endoftext|>'
                         if args['data_spliting'] == 'cross_story':
-                            trail_id = 1 if story in data_info2[-5:] else 0
+                            trail_id = data_info2random_number[data_info2.index(story)]
                         else:
                             trail_id = content_true2idx[content_true]
                         packed_info = self.pack_info(content_prev, additional_bs, content_true, trail_id)
@@ -176,7 +168,6 @@ class FMRI_dataset():
                             self.inputs.append(packed_info)
                         if self.inputs[-1]['content_prev'].shape[0] == 0 and args['context']:
                             self.inputs = self.inputs[:-1]
-            
         self.pack_data_from_input(args)
     
     def pack_data_from_input(self, args, ):
@@ -205,37 +196,3 @@ class FMRI_dataset():
         self.train_dataset = Splited_FMRI_dataset(self.train, args = args)
         self.valid_dataset = Splited_FMRI_dataset(self.valid, args = args)
         self.test_dataset = Splited_FMRI_dataset(self.test, args = args)
-        if args['input_method'] == 'shuffle_valid':
-            self.shuffle_valid()
-    
-    def shuffle_valid(self,):
-        if self.is_shuffled:
-            return
-        self.is_shuffled = True
-        self.test_new = []
-        tmp_additional_bs = copy.deepcopy([self.test[idx]['additional_bs'] for idx in range(len(self.test))])
-        for i in range(self.shuffle_times):
-            for item in self.test:
-                self.test_new.append(copy.deepcopy(item))
-                self.test_new[-1]['additional_bs'] = tmp_additional_bs[random.randint(0, len(self.test)-1)]
-        self.test_dataset_old = Splited_FMRI_dataset(copy.deepcopy(self.test), args = self.args)
-        self.test = self.test_new
-        self.test_dataset = Splited_FMRI_dataset(self.test, args = self.args)
-     
-    def expand(self, test_dataset):
-        expand_dataset = []
-        for item in test_dataset:
-            content_true_length = torch.sum(item['content_true_mask'])
-            content_pre_length = torch.sum(item['content_prev_mask'])
-            for j in range(content_true_length - 1):
-                if content_pre_length < len(item['content_prev']):
-                    item['content_prev'][content_pre_length] = item['content_true'][0]
-                    item['content_prev_mask'][content_pre_length] = 1
-                    content_pre_length += 1
-                else:
-                    item['content_prev'] = torch.cat([item['content_prev'][:-1], item['content_true'][0].unsqueeze(0)])
-                item['content_true'] = torch.cat([item['content_true'][1:], item['content_true'][-1:]])
-                item['content_true_mask'][content_true_length-1] = 0
-                content_true_length -= 1
-                expand_dataset.append(copy.deepcopy(item))
-        return expand_dataset

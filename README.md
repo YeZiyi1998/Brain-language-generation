@@ -25,7 +25,7 @@ This is the official repo for our paper [Language Generation from Brain Recordin
 
 
 ## Quick Start
-We have provided a example dataset to facilitate the replication of experiments. To run the example dataset, you can go into the sub-directory language_generation/src and use the following command:
+We have provided a example dataset to facilitate the replication of experiments. To run the example dataset, you can go into the sub-directory *language_generation/src* and use the following command:
 
 ```bash
 # model training and evaluation (runing BrainLLM)
@@ -36,7 +36,19 @@ python main.py -task_name Pereira_example -cuda 0 -load_check_point False -model
 python main.py -task_name Pereira_example -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path example -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -input_method mask_input -mode evaluate -output test_nobrain
 ```
 
-To run with slurms, you can also use the 
+To run with [slurm]((https://slurm.schedmd.com/documentation.html)), you can also use the provided scripts in the sub-directory *language_generation/scripts* (remember to replace the name of conda environment and the path of the sub-directory *language_generation/scripts* according to your settings).
+
+```bash
+sh example.sh
+```
+
+To run with the datasets utilized in our paper, please download the dataset from [Tsinghua Cloud]((https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/)) and unzip it. Use the parameter *-dataset_path* to specify the path of your unzip dataset.
+For example, if you unzip the dataset into your home directory as *~/released/*, then you can run the training and evaluation of BrainLLM and the participant 1 in Huth dataset using the following command:
+```bash
+python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path Huth_1 -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -mode all -dataset_path ~/released/Huth/ -pos True
+``` 
+
+To evaluate the model performance, you can refer to the code in *language_generation/src/post_hoc_evaluate.py*
 
 ### Installation
 
@@ -52,13 +64,78 @@ pip install -r requirements.txt
 ```
 
 ### Model Training
+To train the model, you need to special the parameter *-mode* as *training* (only training) or *all* (training and evaluation).
+You can specify several hyper parameters according to your requirement, the default parameters for Pereira's dataset, Huth's dataset, and Narratives dataset are provided in *language_generation/scripts/example.sh*, *language_generation/scripts/huth.sh*, and *language_generation/scripts/narratives.sh*, respectively.
+The meaning of hyper parameters are listed below:
 
+|  **Parameter**  | **Meaning**  |
+|   :----   |   :----   |
+| model_name | the selected LLM, choose from {gpt2,gpt2-medium,gpt2-large,gpt2-xl,llama-2} |
+| method | only supported *decoding* in the released verison |
+| task_name | *{dataset_name}_{participant_name}*, dataset_name selected from *{Pereira,Huth,Narratives}* |
+| test_trail_ids | specify the range of test dataset, view the dict *dataset2agrs* in *language_generation/src/config.py* for default setting |
+| valid_trail_ids | specify the range of validation dataset, view the dict *dataset2agrs* in *language_generation/src/config.py* for default setting |
+| random_number | for cross-validation evaluation, cooperate with parameter *test_trail_ids* and *valid_trail_ids*|
+| batch_size | set as 8 in our experiment |
+| fmri_pca | how to do data dimensionality reduction, default is *True* |
+| cuda | specify the device number |
+| layer | not used in the released verison |
+| num_epochs | specify the maximum number of training epochs |
+| lr | learning rate, set as 1e-4 in our experiment |
+| dropout | dropout rate for brain decoder |
+| checkpoint_path | path of training checkpoint for saving and downloading |
+| load_check_point | whether to load existing checkpoint |
+| enable_grad | whether to allow the parameter in LLM updated or not |
+| mode | *train*: only training and evaluate in the validation set; *evaluate*: evaluate in the test set; *all*: train and evaluate|
+| additional_loss | training with additional loss, not used in the released verison |
+| fake_input | training with fake input, not used in the released verison |
+| add_end | not used in the released verison |
+| context | whether to discard data sample without any text prompt or not |
+| roi_selected | roi-based experiment, not used in the released verison |
+| project_name | specify the project name for [wandb]((https://wandb.ai/site)) |
+| noise_ratio | not used in the released verison |
+| wandb | specify how to sync the experimental in [wandb]((https://wandb.ai/site)), selected from *{online, offline, none}* |
+| generation_method | generation method for the LLM, selected from *{greeddy, beam}* |
+| pos | specify whether to use position embedding in the brain decoder |
+| output | specify whether to use position embedding in the brain decoder |
+| data_spliting | specify how to split the dataset, selected from *{random, cross_story}*, default is *random* |
+| brain_model | the based model for the brain decoder, selected from *{mlp,rnn,linear,big_mlp,multi_mlp}* |
+| weight_decay | weight decay |
+| l2 | weight for l2 regularized loss |
+| num_layers | number of layers in the brain decoder |
+| evaluate_log | whether to evaluate in the test set for model in each training epoch |
+| normalized | whether to normalize the input |
+| activation | activation function, selected from *{relu,sigmoid,tanh,relu6}* |
+| pretrain_epochs | number of epochs in warm up step |
+| pretrain_lr | learning rate in warm up step|
+| data_size | maximum training data samples |
+| results_path | path to save model results |
+| dataset_path | path to the downloaded dataset |
+| shuffle_times | permutation times for PerBrainLLM |
 
 ### Model Evaluation
+To evaluate the model with different prompt input, i.e., BrainLLM, PerBrainLLM, and LLM, you can specify the parameter *-input_method* as *normal*, *permutated*, *without_brain*, respectively. To test the model performance without any text prompt, you should train and evaluate the model while setting *-input_method* as *without_text*.
 
+After that, you can get output files for different prompt inputs. Then, you can evaluate their performance by runing the python script *language_generation/src/post_hoc_evaluatoion.py* with the path of output files specified.
+Refer to *language_generation/src/post_hoc_evaluatoion.py* for example usage:
+```bash
+python language_generation/src/post_hoc_evaluatoion.py
+```
 
 ### Dataset
+We test our approach on three public fMRI datasets: [Pereira's dataset]((https://www.nature.com/articles/s41467-018-03068-4)), [Huth's dataset]((https://www.nature.com/articles/s41597-023-02437-z)), and [Narratives dataset]((https://www.nature.com/articles/s41597-021-01033-3)). The brief introduction, ethical information, statistics, and useage details of these datasets are provied in our paper.
+A preprocessed verison dataset is released in [Tsinghua Cloud]((https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/)), where the sub-directory of *Pereira*, *Huth*, and *Narratives* contain the preprocessed data for each participant and story in Pereira's dataset, Huth's dataset, and Narratives dataset, respectively. 
 
+### Experimental results
+This is the overall experimental results in terms of language similarity metrics and pairwise accuracy. Refer to our paper for the explaination of metrics and more analyses.
+| Dataset    | Model      | BLEU-1(↑) | ROUGE-1(↑) | ROUGE-L(↑) | WER(↓) | Pairwise accuracy (with PerBrainLLM) |
+|------------|------------|-----------|------------|------------|--------|--------------------------------------|
+| Pereira’s  | BrainLLM   | 0.1025    | 0.0788     | 0.0749     | 0.9610 | 0.8885                               |
+|            | PerBrainLLM| 0.0787    | 0.0553     | 0.0540     | 0.9726 | 0.5000                               |
+| Huth’s     | BrainLLM   | 0.1356    | 0.1160     | 0.1099     | 0.9541 | 0.8816                               |
+|            | PerBrainLLM| 0.0960    | 0.0817     | 0.0779     | 0.9703 | 0.5000                               |
+| Narratives | BrainLLM   | 0.1320    | 0.1184     | 0.1145     | 0.9283 | 0.6728                               |
+|            | PerBrainLLM| 0.1270    | 0.1133     | 0.1092     | 0.9328 | 0.5000                               |
 
 
 ## Citation

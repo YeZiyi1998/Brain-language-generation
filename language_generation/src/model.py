@@ -6,7 +6,6 @@ from torch.utils.data import DataLoader
 import tqdm
 import torch.optim as optim
 import json
-from evaluation import language_evaluate
 from model_config import model_name2path, model2hidden
 from model_utils import Prompt_model
 import wandb 
@@ -255,7 +254,7 @@ class Decoding_model:
                 re['content_prev'].append(self.tokenizer.convert_tokens_to_string(self.tokenizer.convert_ids_to_tokens(content_prev[i])).replace('<|endoftext|>','').replace('⁇','').replace('</s>','').replace('<unk>','').strip())
                 # content length有bug!
                 re['content_prev_tokens_length'].append(float(torch.sum(content_prev_mask[i]).detach().cpu().numpy()))
-            if self.args['without_text']:
+            if self.args['input_method'] == 'without_text':
                 output, content_all_mask = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
             else:
                 output, content_all_mask = self.prompt_model(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
@@ -335,7 +334,7 @@ class Decoding_model:
             for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask,content_true_mask, content_all, content_all_mask in tqdm.tqdm(train_dataloader, mininterval=300):
                 content_prev, additional_bs,content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask = self.put_data_into_cuda(content_prev,additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask)   
                 content_all, content_all_mask = content_all.to(self.device), content_all_mask.to(self.device)
-                if self.args['without_text']:
+                if self.args['input_method'] == 'without_text':
                     output, content_all_mask2 = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep,)
                 else:
                     output, content_all_mask2 = self.prompt_model(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep,)
@@ -373,7 +372,7 @@ class Decoding_model:
             for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask, content_true_mask, content_all, content_all_mask in tqdm.tqdm(valid_dataloader, mininterval=300):
                 content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask = self.put_data_into_cuda(content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask)
                 content_all, content_all_mask = content_all.to(self.device), content_all_mask.to(self.device)
-                if self.args['without_text']:
+                if self.args['input_method'] == 'without_text':
                     output, content_all_mask = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
                 else:
                     output, content_all_mask = self.prompt_model(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)

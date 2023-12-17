@@ -46,8 +46,6 @@ class MLP(torch.nn.Module):
         self.net=net
 
     def forward(self,X, position_index = False):
-        if self.args['input_method'] == 'mask_input':
-            return self.position_embedding[:X.shape[1],:].unsqueeze(0).tile(X.shape[0],1,1)
         if position_index == False:
             return self.net(X) #X: batch_size * seqlength * dim
         else:
@@ -156,7 +154,7 @@ class Prompt_model(nn.Module):
     def init_encoding_model(self, ):
         self.encoding_model = Encoding_model(self.args, device = self.device)
         self.encoding_model.to(self.device)
-        if self.args['model_name'] in ['llama-7b', ]:
+        if self.args['model_name'] in ['llama-7b',]:
             self.encoding_model.half()
         if self.args['load_check_point']:
             if type(self.encoding_model) == list:
@@ -219,13 +217,13 @@ class Prompt_model(nn.Module):
                     additional_bs_tokenized[k] = self.words2embedding(content_all)
             else:
                 additional_bs_tokenized = self.words2embedding(content_all)
-        if self.args['without_input']:
+        if self.args['input_method'] == 'without_brain':
             if self.args['model_name'] in ['llama-7b',]:
                 content_all_list = [self.get_prev(additional_bs_tokenized, content_prev_sep)[0]] + [content_all,]
                 content_all_mask = torch.cat([additional_bs_mask[:,:1], content_all_mask], dim=-1)
             else:
                 content_all_list = [content_all,]
-        elif self.args['without_text'] and mode in ['test']:
+        elif self.args['input_method'] == 'without_text' and mode in ['test']:
             content_all_list = self.get_prev(additional_bs_tokenized, content_prev_sep)
             content_all_mask = torch.cat([additional_bs_mask, ], dim=-1)
         else:

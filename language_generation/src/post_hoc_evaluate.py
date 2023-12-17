@@ -175,16 +175,17 @@ def get_iterate_results(path_name, print_log = False, ):
         print(output_str)
     return result
 
-def show_significance(result1, result2, excel_output=True,metrics = ['corpus_bleu_score_1', 'rouge_1', 'rouge_l', 'valid_loss', 'wer']):
+def show_significance(result1, result2, excel_output=False,metrics = ['corpus_bleu_score_1', 'rouge_1', 'rouge_l', 'valid_loss', 'wer']):
     output_str = f'corpus_bleu_score_1: {get_compare_list(result1["corpus_bleu_score"][1], result2["corpus_bleu_score"][1])}\n'
     output_str += f'rouge_1: {get_compare_list(result1["rouge_scores"]["rouge-1"]["r"], result2["rouge_scores"]["rouge-1"]["r"])}\n'
     output_str += f'rouge_l: {get_compare_list(result1["rouge_scores"]["rouge-l"]["r"], result2["rouge_scores"]["rouge-l"]["r"])}\n'
     if 'valid_loss' in metrics:
         output_str += f'valid_loss: {get_compare_list(result1["valid_loss"], result2["valid_loss"])}\n'
-    output_str += f'wer: {get_compare_list(result1["wer"], result2["wer"])}\n'
+    output_str += f'wer: {get_compare_list(result1["wer"], result2["wer"])}'
     print(output_str)
     if 'valid_loss' in metrics:
-        print(f"pairwise accuracy:  {np.sum([compare(np.array(result1['valid_loss'][idx]), np.array(result2['valid_loss'][idx])) for idx in range(len(result1['valid_loss']))])/len(result1['valid_loss']):.4f}")
+        pairwise_list = [compare(np.array(result1['valid_loss'][idx]), np.array(result2['valid_loss'][idx])) for idx in range(len(result1['valid_loss']))]
+        print(f"pairwise accuracy:  {np.sum(pairwise_list)/len(result1['valid_loss']):.4f}",)
     if excel_output:
         for result in [result1, result2]:
             print(f'{np.mean(result["corpus_bleu_score"][1]):.4f},{np.mean(result["rouge_scores"]["rouge-1"]["r"]):.4f},{np.mean(result["rouge_scores"]["rouge-l"]["r"]):.4f},{np.mean(result["valid_loss"]):.4f},{np.mean(result["wer"]):.4f}')
@@ -221,7 +222,16 @@ def compare(a,b):
         return 0.5
     return 1 if a<b else 0
 
+def is_only_dot_space(text):
+    pattern = r'^[.\s]+$'
+    match = re.match(pattern, text)
+    if match:
+        return True
+    else:
+        return False
+
 if __name__ == '__main__':
+    # comparing BrainLLM and PerBrainLLM
     base_path = '../results/'
     model_dir_list = [{'path_name':base_path + 'example', 'file_name':'test.json'}]
     control_dir_list = [{'path_name':base_path + 'example', 'file_name':'test_permutated.json'}]
@@ -235,3 +245,16 @@ if __name__ == '__main__':
     
     show_significance(model_result, control_result)
     
+    # comparing BrainLLM and LLM
+    base_path = '../results/'
+    model_dir_list = [{'path_name':base_path + 'example', 'file_name':'test.json'}]
+    control_dir_list = [{'path_name':base_path + 'example', 'file_name':'test_nobrain.json'}]
+    model_result = get_iterate_results(model_dir_list)
+    control_result = get_iterate_results(control_dir_list)
+    if len(model_result['content_prev']) < len(control_result['content_prev']):
+        if len(model_result['content_prev']) * 10 == len(control_result['content_prev']):
+            model_result = multi_add(model_result)
+        else:
+            print("Error: length of data samples in the proposed model and the control model doesn't not match")
+    
+    show_significance(model_result, control_result)
