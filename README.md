@@ -36,13 +36,13 @@ python main.py -task_name Pereira_example -cuda 0 -load_check_point False -model
 python main.py -task_name Pereira_example -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path example -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -input_method mask_input -mode evaluate -output test_nobrain
 ```
 
-To run with [slurm]((https://slurm.schedmd.com/documentation.html)), you can also use the provided scripts in the sub-directory *language_generation/scripts* (remember to replace the name of conda environment and the path of the sub-directory *language_generation/scripts* according to your settings).
+To run with [slurm](https://slurm.schedmd.com/documentation.html), you can also use the provided scripts in the sub-directory *language_generation/scripts* (remember to replace the name of conda environment and the path of the sub-directory *language_generation/scripts* according to your settings).
 
 ```bash
 sh example.sh
 ```
 
-To run with the datasets utilized in our paper, please download the dataset from [Tsinghua Cloud]((https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/)) and unzip it. Use the parameter *-dataset_path* to specify the path of your unzip dataset.
+To run with the datasets utilized in our paper, please download the dataset from [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/) and unzip it. Use the parameter *-dataset_path* to specify the path of your unzip dataset.
 For example, if you unzip the dataset into your home directory as *~/released/*, then you can run the training and evaluation of BrainLLM and the participant 1 in Huth dataset using the following command:
 ```bash
 python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path Huth_1 -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -mode all -dataset_path ~/released/Huth/ -pos True
@@ -52,7 +52,7 @@ To evaluate the model performance, you can refer to the code in *language_genera
 
 ### Installation
 
-This repo is developed with [PyTorch]((https://pytorch.org/get-started/locally/)). It can be installed manually according to the requirement of platform-specific custom configuration. The recommended commands for installation are:
+This repo is developed with [PyTorch](https://pytorch.org/get-started/locally/). It can be installed manually according to the requirement of platform-specific custom configuration. The recommended commands for installation are:
 ```bash
 # XX.X is a placeholder for cudatoolkit version. It should be specified according to your environment
 conda install pytorch torchvision torchaudio cudatoolkit=XX.X -c pytorch 
@@ -92,9 +92,9 @@ The meaning of hyper parameters are listed below:
 | add_end | not used in the released verison |
 | context | whether to discard data sample without any text prompt or not |
 | roi_selected | roi-based experiment, not used in the released verison |
-| project_name | specify the project name for [wandb]((https://wandb.ai/site)) |
+| project_name | specify the project name for [wandb](https://wandb.ai/site) |
 | noise_ratio | not used in the released verison |
-| wandb | specify how to sync the experimental in [wandb]((https://wandb.ai/site)), selected from *{online, offline, none}* |
+| wandb | specify how to sync the experimental in [wandb](https://wandb.ai/site), selected from *{online, offline, none}* |
 | generation_method | generation method for the LLM, selected from *{greeddy, beam}* |
 | pos | specify whether to use position embedding in the brain decoder |
 | output | specify whether to use position embedding in the brain decoder |
@@ -123,8 +123,8 @@ python language_generation/src/post_hoc_evaluatoion.py
 ```
 
 ### Dataset
-We test our approach on three public fMRI datasets: [Pereira's dataset](https://www.nature.com/articles/s41467-018-03068-4), [Huth's dataset]((https://www.nature.com/articles/s41597-023-02437-z)), and [Narratives dataset]((https://www.nature.com/articles/s41597-021-01033-3)). The brief introduction, ethical information, statistics, and useage details of these datasets are provied in our paper.
-A preprocessed verison dataset is released in [Tsinghua Cloud]((https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/)), where the sub-directory of *Pereira*, *Huth*, and *Narratives* contain the preprocessed data for each participant and story in Pereira's dataset, Huth's dataset, and Narratives dataset, respectively. 
+We test our approach on three public fMRI datasets: [Pereira's dataset](https://www.nature.com/articles/s41467-018-03068-4), [Huth's dataset](https://www.nature.com/articles/s41597-023-02437-z), and [Narratives dataset](https://www.nature.com/articles/s41597-021-01033-3). The brief introduction, ethical information, statistics, and useage details of these datasets are provied in our paper.
+A preprocessed verison dataset is released in [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/), where the sub-directory of *Pereira*, *Huth*, and *Narratives* contain the preprocessed data for each participant and story in Pereira's dataset, Huth's dataset, and Narratives dataset, respectively. 
 
 ### Experimental results
 This is the overall experimental results in terms of language similarity metrics and pairwise accuracy. Refer to our paper for the explaination of metrics and more analyses.
