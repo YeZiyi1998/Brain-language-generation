@@ -127,15 +127,18 @@ We test our approach on three public fMRI datasets: [Pereira's dataset](https://
 A preprocessed verison dataset is released in [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/), where the sub-directory of *Pereira*, *Huth*, and *Narratives* contain the preprocessed data for each participant and story in Pereira's dataset, Huth's dataset, and Narratives dataset, respectively. 
 
 ### Experimental results
-This is the overall experimental results in terms of language similarity metrics and pairwise accuracy. Refer to our paper for the explaination of metrics and more analyses.
-| Dataset    | Model      | BLEU-1(↑) | ROUGE-1(↑) | ROUGE-L(↑) | WER(↓) | Pairwise accuracy (with PerBrainLLM) |
-|------------|------------|-----------|------------|------------|--------|--------------------------------------|
-| Pereira’s  | BrainLLM   | 0.1025    | 0.0788     | 0.0749     | 0.9610 | 0.8885                               |
-|            | PerBrainLLM| 0.0787    | 0.0553     | 0.0540     | 0.9726 | 0.5000                               |
-| Huth’s     | BrainLLM   | 0.1356    | 0.1160     | 0.1099     | 0.9541 | 0.8816                               |
-|            | PerBrainLLM| 0.0960    | 0.0817     | 0.0779     | 0.9703 | 0.5000                               |
-| Narratives | BrainLLM   | 0.1320    | 0.1184     | 0.1145     | 0.9283 | 0.6728                               |
-|            | PerBrainLLM| 0.1270    | 0.1133     | 0.1092     | 0.9328 | 0.5000                               |
+This is the overall experimental results in terms of language similarity metrics. Refer to our paper for the explaination of metrics and more analyses.
+| Dataset    | Model        | Bleu-1(↑) | ROUGE-1(↑) | ROUGE-L(↑) | WER(↓) |
+|------------|--------------|-----------|------------|------------|--------|
+| Pereira’s  | BrainLLM     | 0.3333    | 0.2987     | 0.2877     | 0.7681 |
+|            | PerBrainLLM  | 0.3249    | 0.2875     | 0.2771     | 0.7781 |
+|            | LLM          | 0.2415    | 0.2133     | 0.2096     | 0.8349 |
+| Huth’s     | BrainLLM     | 0.1899    | 0.1780     | 0.1709     | 0.8946 |
+|            | PerBrainLLM  | 0.1668    | 0.1536     | 0.1474     | 0.9109 |
+|            | LLM          | 0.1500    | 0.1360     | 0.1310     | 0.9200 |
+| Narratives | BrainLLM     | 0.1375    | 0.1249     | 0.1209     | 0.9239 |
+|            | PerBrainLLM  | 0.1269    | 0.1144     | 0.1105     | 0.9311 |
+|            | LLM          | 0.0953    | 0.0858     | 0.0829     | 0.9485 |
 
 
 ## Citation
