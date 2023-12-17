@@ -1,1 +1,0 @@
-python main.py -task_name Pereira_M02 -cuda 4 -load_check_point False -model_name gpt2 -checkpoint_path test -lr 1e-5 -test_trail_ids 1,2 -batch_size 2

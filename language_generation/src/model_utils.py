@@ -1,6 +1,5 @@
 import torch
 import torch.nn as nn
-from split_model import Split_gpt0, Split_gpt1
 import random
 
 class MLP(torch.nn.Module):
@@ -17,7 +16,7 @@ class MLP(torch.nn.Module):
             nn.init.uniform_(self.position_embedding, -1, 1)
         elif position_index:   
             self.position_embedding = nn.Parameter(torch.empty(max_seq_len, embedding_size), requires_grad=True) # 
-            nn.init.uniform_(self.position_embedding, -1, 1) # -0.02, 0.02
+            nn.init.uniform_(self.position_embedding, -1, 1)
         net = nn.Sequential()
         num_layers = args['num_layers']
         for i in range(num_layers):
@@ -142,17 +141,9 @@ class Prompt_model(nn.Module):
         self.args = args
         self.device = device
         self.tokenizer = tokenizer
-        if args['model_split'] != -1 and 'gpt2' in args['model_name']:
-            self.split_model0, self.split_model1 = Split_gpt0(self.model, layer = args['model_split'], model_name = args['model_name']), Split_gpt1(self.model, layer = args['model_split'])
-            self.split_model0.to(device)
-            self.split_model1.to(device)
-            self.additional_prompt = Encoding_model(args)
-            self.additional_prompt.to(device)
         self.mse_loss = nn.MSELoss()  
         tmp_weights = []
         for new_token in new_tokens:
-            # 发现bug
-            # new_token_id = self.tokenizer.convert_tokens_to_ids(f"[{new_token}]")
             new_token_id = self.tokenizer.convert_tokens_to_ids(f"{new_token}")
             if 'gpt2' in self.args['model_name']:
                 tmp_weight = self.model.transformer.wte.weight[new_token_id]
@@ -163,14 +154,9 @@ class Prompt_model(nn.Module):
         self.token_weights = nn.Parameter(tmp_weights.clone().detach(), requires_grad=True)
     
     def init_encoding_model(self, ):
-        if len(self.args['roi_selected']) > 1:
-            self.encoding_model = []
-            for k in range(len(self.args['roi_selected'])):
-                self.encoding_model.append(Encoding_model(self.args, brain_embed_size=self.args['roi_size'][k]).to(self.device))
-        else:
-            self.encoding_model = Encoding_model(self.args, device = self.device)
-            self.encoding_model.to(self.device)
-        if self.args['model_name'] in ['llama-7b', 'vicuna-7b','llama-7b-old']:
+        self.encoding_model = Encoding_model(self.args, device = self.device)
+        self.encoding_model.to(self.device)
+        if self.args['model_name'] in ['llama-7b', ]:
             self.encoding_model.half()
         if self.args['load_check_point']:
             if type(self.encoding_model) == list:
@@ -182,7 +168,7 @@ class Prompt_model(nn.Module):
                 self.encoding_model.to(self.device)   
         
     def words2embedding(self, input_ids):
-        if self.args['model_name'] in ['llama-7b', 'vicuna-7b','llama-7b-old']:
+        if self.args['model_name'] in ['llama-7b',]:
             return self.model.get_input_embeddings()(input_ids)
         else:
             if type(input_ids) == list:
@@ -203,7 +189,7 @@ class Prompt_model(nn.Module):
             return re   
             # 
         else:
-            if self.args['model_name'] in ['llama-7b','llama-7b-old']:
+            if self.args['model_name'] in ['llama-7b',]:
                 return [content_prev_sep[:,:1,:], content_prev_sep[:,1:2,:], additional_bs, content_prev_sep[:,2:,:],]
             else:
                 return [content_prev_sep[:,:1,:], additional_bs, content_prev_sep[:,1:,:],]
@@ -215,7 +201,6 @@ class Prompt_model(nn.Module):
         content_prev_sep[:,-2] = self.token_weights[-2]
         return content_prev_sep
 
-    # 目前代码还有一个bug是，对于without_input，输入还有可能是啥都没有，咋整呢，add special tokens吗？
     def tokenize(self, content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=True,mode='train'):
         content_all = self.words2embedding(content_all)
         content_prev_sep = self.get_tokens(content_prev_sep)
@@ -235,7 +220,7 @@ class Prompt_model(nn.Module):
             else:
                 additional_bs_tokenized = self.words2embedding(content_all)
         if self.args['without_input']:
-            if self.args['model_name'] in ['llama-7b', 'llama-7b-old']:
+            if self.args['model_name'] in ['llama-7b',]:
                 content_all_list = [self.get_prev(additional_bs_tokenized, content_prev_sep)[0]] + [content_all,]
                 content_all_mask = torch.cat([additional_bs_mask[:,:1], content_all_mask], dim=-1)
             else:
@@ -246,34 +231,24 @@ class Prompt_model(nn.Module):
         else:
             content_all_list = self.get_prev(additional_bs_tokenized, content_prev_sep) + [ content_all,]
             content_all_mask = torch.cat([additional_bs_mask, content_all_mask], dim=-1)
-            if self.args['model_split'] != -1:
-                content_all_mask[:,:len(additional_bs_mask)] = 0
         content_all = torch.cat(content_all_list, dim=-2)
         return content_all, content_all_mask
 
     def forward(self, content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=True,mode='train'):
         content_all, content_all_mask = self.tokenize(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake,mode)
-        if self.args['model_split'] != -1:
-            args = self.split_model0(inputs_embeds=content_all, attention_mask = content_all_mask, return_dict=True)
-            additional_bs = self.additional_prompt(additional_bs, self.args['pos'])
-            args[0][:,1:additional_bs.shape[1]+1] = additional_bs
-            if self.args['model_split'] != -1:
-                args[4][:,:len(additional_bs_mask)] = 1
-            output = self.split_model1(*args)
-        else:
-            output = self.model(inputs_embeds=content_all, attention_mask = content_all_mask)
+        output = self.model(inputs_embeds=content_all, attention_mask = content_all_mask)
         return output, content_all_mask
     
     def pad2left(self, content_prev, content_prev_mask):
         padding_counts = (content_prev_mask == 1).sum(dim=1)
-        # 初始化新的张量
+        # initialize new tensors for fill
         front_padded_input_embeds = torch.zeros_like(content_prev)
         front_padded_mask = torch.zeros_like(content_prev_mask)
 
-        for i in range(content_prev.size(0)):  # 遍历每个样本
-            # 计算需要移动的位置数
+        for i in range(content_prev.size(0)):  # go through each sample
+            # calculate the number of positions we need to move
             shift = padding_counts[i].item()
-            # 为 input_embeds 和 mask 重新排列
+            # fill the input_embeds and the mask
             front_padded_input_embeds[i, content_prev.size(1) - shift:] = content_prev[i, :shift]
             front_padded_input_embeds[i, :content_prev.size(1) - shift] = content_prev[i, shift:]
             front_padded_mask[i, content_prev.size(1) - shift:] = content_prev_mask[i, :shift]
@@ -284,13 +259,13 @@ class Prompt_model(nn.Module):
         content_prev, content_prev_mask = self.pad2left(content_prev, content_prev_mask)
         total_prob = 1
         for target_id in candidate[0]:
-            # 使用模型进行预测，得到logits
+            # predict and get the logits
             with torch.no_grad():
                 outputs = self.model(inputs_embeds = content_prev, )
             logits = outputs.logits.squeeze(0)[-1]
-            # 将logits转换为概率分布
+            # transform logits into probability distribution
             probs = torch.softmax(logits, dim=0)
-            # 输出[MASK]被预测成"me"的概率
+            # Get the probability that the output [MASK] is predicted as a special token
             prob = probs[target_id].item() / probs.sum().item()
             total_prob *= prob
             content_prev = torch.cat([content_prev, self.words2embedding(torch.tensor([[target_id]]).to(self.device))], dim=1)
@@ -303,10 +278,7 @@ class Prompt_model(nn.Module):
         if self.args['generation_method'] == 'greedy':
             seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=max_new_tokens,return_dict_in_generate=True,num_beams=1,do_sample=False, pad_token_id=self.tokenizer.eos_token_id,num_return_sequences=5,)
         elif self.args['generation_method'] == 'beam':
-            if self.args['use_bad_words_ids']:
-                seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=max_new_tokens,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=2.0,pad_token_id=self.tokenizer.eos_token_id, num_return_sequences=5,bad_words_ids=self.bad_words_ids) 
-            else:
-                seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=max_new_tokens,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=2.0,pad_token_id=self.tokenizer.eos_token_id, num_return_sequences=5,) 
+            seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=max_new_tokens,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=2.0,pad_token_id=self.tokenizer.eos_token_id, num_return_sequences=5,) 
         all_truncated_predictions = []
         for i in range(len(seq2seqLMoutput['sequences'])):
             predictions = seq2seqLMoutput['sequences'][i]
@@ -326,10 +298,7 @@ class Prompt_model(nn.Module):
         if self.args['generation_method'] == 'greedy':
             seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=1,do_sample=False, pad_token_id=self.tokenizer.eos_token_id)
         elif self.args['generation_method'] == 'beam':
-            if self.args['use_bad_words_ids']:
-                seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=2.0,pad_token_id=self.tokenizer.eos_token_id, bad_words_ids=self.bad_words_ids) 
-            else:
-                seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=2.0,pad_token_id=self.tokenizer.eos_token_id, ) 
+            seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=2.0,pad_token_id=self.tokenizer.eos_token_id, ) 
         all_truncated_predictions = []
         for i in range(len(seq2seqLMoutput['sequences'])):
             predictions = seq2seqLMoutput['sequences'][i]
@@ -346,7 +315,6 @@ class Prompt_model(nn.Module):
         # data is b * n * m, fuse to b * 4 * m, use a mean fusing for simplicity
         return torch.mean(data[:,:content_true_mask.shape[1],:], axis=1).unsqueeze(1).tile(1, fuse_len, 1)
 
-    # 有个bug是在于 content_true和additional_bs的长度不一定一样
     def additional_loss(self, content_true, content_true_mask, additional_bs):
         fuse_len = additional_bs.shape[1]
         content_true = self.words2embedding(content_true)

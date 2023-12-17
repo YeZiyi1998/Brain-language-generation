@@ -1,4 +1,5 @@
-dataset/
+dataset/*
+!dataset/.gitkeep
 *.pt
 __pycache__/
 github/
@@ -12,3 +13,4 @@ wandb/
 .vscode
 language_generation/src/settings.py
 language_generation/results/*
+slurm-*.out

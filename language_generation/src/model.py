@@ -13,7 +13,6 @@ import wandb
 import torch.optim.lr_scheduler as lr_scheduler
 from optimizer import Adam16
 import random
-from GPT import GPT
 
 class Decoding_model:
     def put_data_into_cuda(self, content_prev,additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, ):
@@ -23,11 +22,11 @@ class Decoding_model:
                 additional_bs[k] = additional_bs[k].to(self.device)
         else:
             additional_bs = additional_bs.to(self.device)
-        if self.args['model_name'] in ['llama-7b','llama-7b-old']:
+        if self.args['model_name'] in ['llama-7b']:
             additional_bs_mask = torch.ones([additional_bs.shape[0], additional_bs.shape[1]+2+1]).to(self.device)
         else:
             additional_bs_mask = torch.ones([additional_bs.shape[0], additional_bs.shape[1]+2]).to(self.device)
-        if self.args['model_name'] in ['llama-7b', 'vicuna-7b','llama-7b-old']:
+        if self.args['model_name'] in ['llama-7b',]:
             additional_bs = additional_bs.half()
         return content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask
     
@@ -35,9 +34,13 @@ class Decoding_model:
         # load model
         self.device = torch.device(f"cuda:{args['cuda']}")
         self.args = args
-        if args['model_name'] in ['llama-7b', 'vicuna-7b','llama-7b-old']:
-            self.tokenizer = LlamaTokenizer.from_pretrained(model_name2path[args['model_name']])
-            self.model = LlamaForCausalLM.from_pretrained(model_name2path[args['model_name']]).to(self.device)
+        if args['model_name'] in ['llama-7b',]:
+            if args['model_name'] in model_name2path.keys():
+                self.tokenizer = LlamaTokenizer.from_pretrained(model_name2path[args['model_name']])
+                self.model = LlamaForCausalLM.from_pretrained(model_name2path[args['model_name']]).to(self.device)
+            else:
+                self.tokenizer = LlamaTokenizer.from_pretrained(args['model_name'])
+                self.model = LlamaForCausalLM.from_pretrained(args['model_name']).to(self.device)
             self.model.half()
         elif 'gpt' in args['model_name']:
             if args['model_name'] in model_name2path.keys():
@@ -46,11 +49,6 @@ class Decoding_model:
             else:
                 self.tokenizer = GPT2Tokenizer.from_pretrained(args['model_name'])
                 self.model = GPT2LMHeadModel.from_pretrained(args['model_name']).to(self.device)
-        elif 'private' in args['model_name']:
-            DATA_LM_DIR = '/work/yzy/transfer/fmri/github/semantic-decoding/data_lm/perceived'
-            with open(os.path.join(DATA_LM_DIR, "vocab.json"), "r") as f:
-                gpt_vocab = json.load(f)
-            self.model = GPT(path = os.path.join(DATA_LM_DIR, "model"), vocab = gpt_vocab, device = self.device)
         # add special token <brain/> and </brain>
         if args['model_name'] not in ['llama-7b', 'vicuna-7b',]:
             self.tokenizer.pad_token = self.tokenizer.eos_token
