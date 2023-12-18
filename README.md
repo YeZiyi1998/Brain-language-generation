@@ -7,7 +7,7 @@
     <img alt="BCI" src="https://img.shields.io/badge/BCI-Language%20Generation-blueviolet">
     </a>
     <a href="https://github.com/YeZiyi1998/Brain-language-generation/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/badge/License-cc by\-nc 4.0-blue.svg">
+    <img alt="License" src="https://img.shields.io/badge/License-'cc by-nc 4.0'-blue.svg">
     </a>
     <a>
     <a href="https://pytorch.org">
