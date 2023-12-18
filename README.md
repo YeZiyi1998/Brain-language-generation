@@ -7,7 +7,7 @@
     <img alt="BCI" src="https://img.shields.io/badge/BCI-Language%20Generation-blueviolet">
     </a>
     <a href="https://github.com/YeZiyi1998/Brain-language-generation/blob/main/LICENSE">
-    <img alt="License" src="https://img.shields.io/badge/License-MIT-blue.svg">
+    <img alt="License" src="https://img.shields.io/badge/License-cc by\-nc 4.0-blue.svg">
     </a>
     <a>
     <a href="https://pytorch.org">
@@ -25,7 +25,7 @@ This is the official repo for our paper [Language Generation from Brain Recordin
 
 
 ## Quick Start
-We have provided a example dataset to facilitate the replication of experiments. To run the example dataset, you can go into the sub-directory *language_generation/src* and use the following command:
+We have provided an example dataset to facilitate the replication of experiments. To run the example dataset, you can go into the sub-directory *language_generation/src* and use the following command:
 
 ```bash
 # model training and evaluation (runing BrainLLM)
