@@ -29,6 +29,7 @@ class Splited_FMRI_dataset(Dataset):
                 input_sample['content_true_mask'],
                 input_sample['content_all'],
                 input_sample['content_all_mask'],
+                input_sample['id']
             )
 
 class FMRI_dataset():
@@ -50,7 +51,7 @@ class FMRI_dataset():
             mask_half_tokens(item['content_prev'], new_token_id, self.args['noise_ratio'])
         return input_dataset
     
-    def pack_info(self, content_prev, additional_bs, content_true, trail_id):
+    def pack_info(self, content_prev, additional_bs, content_true, trail_id,id):
         if self.args['model_name'] in ['llama-7b',]:
             self.add_special_tokens = True
             content_all = self.tokenizer.encode_plus(content_prev+' '+content_true, max_length=64, truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length',)
@@ -76,6 +77,7 @@ class FMRI_dataset():
                 'trail_id': trail_id,
                 'content_all': content_all['input_ids'][0],
                 'content_all_mask': content_all['attention_mask'][0],
+                'id':id
             }
     
     def normalized(self, dic_pere):
@@ -99,13 +101,15 @@ class FMRI_dataset():
         if args['normalized']:
             self.scaler = StandardScaler()
         self.tokenizer = tokenizer
+        id2info = {}
+        tmp_id = 0
         if 'Pereira' in args['task_name']:
             dataset_name, subject_name = args['task_name'].split('_')
             pere_dataset = pickle.load(open(f'{dataset_path}{subject_name}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}{subject_name}.wq.pkl.dic','rb'))
             if args['normalized']:
                 self.normalized(pere_dataset)
             for story in input_dataset.keys():
-                for item in input_dataset[story]:
+                for item_id, item in enumerate(input_dataset[story]):
                     for k in range(1, len(item['word'])):
                         content_prev = ' '.join([item['word'][j]['content'] for j in range(0,k)])
                         additional_bs = np.array([pere_dataset[story]['fmri'][idx] for idx in item['word'][k]['additional']])
@@ -113,7 +117,9 @@ class FMRI_dataset():
                         if args['add_end']:
                             content_true += '<|endoftext|>'
                         random_number = random.random()
-                        packed_info = self.pack_info(content_prev, additional_bs, content_true, random_number)
+                        id2info[tmp_id] = {'story':story, 'item_id':item_id, 'k': k}
+                        packed_info = self.pack_info(content_prev, additional_bs, content_true, random_number, id = tmp_id)
+                        tmp_id += 1
                         if torch.sum(packed_info['content_true_mask']) > 0:
                             self.inputs.append(packed_info)   
         elif 'Narratives' in args['task_name']:
@@ -135,7 +141,9 @@ class FMRI_dataset():
                             random_number = random.random()
                             if content_true not in content_true2idx.keys():
                                 content_true2idx[content_true] = random_number
-                            packed_info = self.pack_info(content_prev, additional_bs, content_true, content_true2idx[content_true])
+                            id2info[tmp_id] = {'story':story, 'item_id':item_id, 'k': k}
+                            packed_info = self.pack_info(content_prev, additional_bs, content_true, content_true2idx[content_true], id = tmp_id)
+                            tmp_id += 1
                             if len(packed_info['content_true']) > 0 and len(packed_info['content_prev']) > 0:
                                 self.inputs.append(packed_info)
         elif 'Huth' in args['task_name']:
@@ -163,12 +171,15 @@ class FMRI_dataset():
                             trail_id = data_info2random_number[data_info2.index(story)]
                         else:
                             trail_id = content_true2idx[content_true]
-                        packed_info = self.pack_info(content_prev, additional_bs, content_true, trail_id)
+                        id2info[tmp_id] = {'story':story, 'item_id':item_id, 'k': k}
+                        packed_info = self.pack_info(content_prev, additional_bs, content_true, trail_id, id = tmp_id)
+                        tmp_id += 1
                         if torch.sum(packed_info['content_true_mask']) > 0:
                             self.inputs.append(packed_info)
                         if self.inputs[-1]['content_prev'].shape[0] == 0 and args['context']:
                             self.inputs = self.inputs[:-1]
         self.pack_data_from_input(args)
+        json.dump(id2info, open(self.args['checkpoint_path']+'/'+'id2info.json', 'w'))
     
     def pack_data_from_input(self, args, ):
         self.train = []
