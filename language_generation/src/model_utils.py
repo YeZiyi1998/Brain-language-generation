@@ -148,7 +148,7 @@ class Prompt_model(nn.Module):
             elif 'llama' in self.args['model_name']:
                 tmp_weight = self.model.model.embed_tokens.weight[new_token_id]
             tmp_weights.append(tmp_weight)
-        tmp_weights = torch.cat(tmp_weights, dim=0)
+        tmp_weights = torch.stack(tmp_weights,)
         self.token_weights = nn.Parameter(tmp_weights.clone().detach(), requires_grad=True)
     
     def init_encoding_model(self, ):

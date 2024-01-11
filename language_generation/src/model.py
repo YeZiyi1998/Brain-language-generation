@@ -279,7 +279,7 @@ class Decoding_model:
         
         # optimizer = optim.SGD(filter(lambda p: p.requires_grad, parameters), lr=self.args['pretrain_lr'])
         total_additional_loss = 0
-        for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask,content_true_mask, content_all, content_all_mask in tqdm.tqdm(dataloader, mininterval=300):
+        for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask,content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(dataloader, mininterval=300):
             content_prev, additional_bs,content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask = self.put_data_into_cuda(content_prev,additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask)   
             additional_loss = self.prompt_model.additional_loss(content_prev, content_prev_mask, additional_bs)
             total_additional_loss += additional_loss.item()
@@ -332,7 +332,7 @@ class Decoding_model:
             if 'Narratives' in self.args['task_name'] and 'person' not in self.args['task_name']:
                 random.shuffle(train_dataset.inputs)
                 train_dataloader = DataLoader(train_dataset, batch_size = self.args['batch_size'], shuffle=True, num_workers=1) 
-            for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask,content_true_mask, content_all, content_all_mask in tqdm.tqdm(train_dataloader, mininterval=300):
+            for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask,content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(train_dataloader, mininterval=300):
                 content_prev, additional_bs,content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask = self.put_data_into_cuda(content_prev,additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask)   
                 content_all, content_all_mask = content_all.to(self.device), content_all_mask.to(self.device)
                 if self.args['input_method'] == 'without_text':
@@ -370,7 +370,7 @@ class Decoding_model:
 
             valid_loss = 0
             self.prompt_model.eval()
-            for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask, content_true_mask, content_all, content_all_mask in tqdm.tqdm(valid_dataloader, mininterval=300):
+            for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask, content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(valid_dataloader, mininterval=300):
                 content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask = self.put_data_into_cuda(content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask)
                 content_all, content_all_mask = content_all.to(self.device), content_all_mask.to(self.device)
                 if self.args['input_method'] == 'without_text':
