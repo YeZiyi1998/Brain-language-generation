@@ -188,18 +188,18 @@ class FMRI_dataset():
         self.is_shuffled = False
         test_ids = args['test_trail_ids']
         valid_ids = args['valid_trail_ids']
-        if args['input_method'] == 'permutated':
-            tmp_additional_bs = copy.deepcopy([self.inputs[(idx+int(len(self.inputs)/2))%len(self.inputs)]['additional_bs'] for idx in range(len(self.inputs))])
-            random.shuffle(tmp_additional_bs)
         for idx,item in enumerate(self.inputs):
-            if args['input_method'] == 'permutated':
-                item['additional_bs'] = tmp_additional_bs[idx]
             if item['trail_id'] > test_ids[0] and item['trail_id'] <= test_ids[1]:
                 self.test.append(item)
             elif item['trail_id'] > valid_ids[0] and item['trail_id'] <= valid_ids[1]:
                 self.valid.append(item)
             else:
                 self.train.append(item)
+        if args['input_method'] == 'permutated':
+            tmp_additional_bs = copy.deepcopy([self.test[(idx+int(len(self.test)/2))%len(self.test)]['additional_bs'] for idx in range(len(self.test))])
+            random.shuffle(tmp_additional_bs)
+            for idx,item in enumerate(self.test):
+                self.test[idx]['additional_bs'] = tmp_additional_bs[idx]
         if args['data_size'] != -1:
             random.shuffle(self.train)
             self.train = self.train[:args['data_size']]

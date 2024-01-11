@@ -68,8 +68,6 @@ class Decoding_model:
             self.freeze_model()
         args['word_embed_size'] = model2hidden[args['model_name']]
 
-        if args['load_check_point']:
-            self.load_check_point()
         if args['enable_grad']==False:
             for new_token in self.new_tokens:
                 # 发现bug
@@ -83,6 +81,9 @@ class Decoding_model:
         self.prompt_model = Prompt_model(args, self.model, self.tokenizer, self.device, self.new_tokens)
         self.max_norm = 0.1 if args['model_name'] in ['llama-7b','llama-7b-old'] else 10
         
+        if args['load_check_point']:
+            self.load_check_point()
+        
     def freeze_model(self,):
         for param in self.model.parameters():
             param.requires_grad = False
@@ -91,10 +92,7 @@ class Decoding_model:
         re = {'new_tokens':[]}
         for new_token in self.new_tokens:
             new_token_id = self.tokenizer.convert_tokens_to_ids(f"{new_token}")
-            if 'gpt2' in self.args['model_name']:
-                re['new_tokens'].append(self.model.transformer.wte.weight[new_token_id].detach().cpu())
-            elif 'llama' in self.args['model_name']:
-                re['new_tokens'].append(self.model.model.embed_tokens.weight[new_token_id].detach().cpu())
+            re['new_tokens'] = self.prompt_model.token_weights.detach()
         
         if self.args['enable_grad']:
             re['total_model'] = self.model.state_dict()
@@ -166,12 +164,7 @@ class Decoding_model:
         if self.args['enable_grad']:
             self.model.load_state_dict(re['total_model'])
         else:
-            for i, new_token in enumerate(self.new_tokens):
-                new_token_id = self.tokenizer.convert_tokens_to_ids(f"[{new_token}]")
-                if 'gpt2' in self.args['model_name']:
-                    self.model.transformer.wte.weight[new_token_id].data = re['new_tokens'][i].detach()
-                else:
-                    self.model.model.embed_tokens.weight[new_token_id].data = re['new_tokens'][i].detach()
+            self.prompt_model.token_weights.weight = re['new_tokens'].detach()
                 
         self.check_point = re
 
