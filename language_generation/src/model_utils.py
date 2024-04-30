@@ -297,6 +297,7 @@ class Prompt_model(nn.Module):
             seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=1,do_sample=False, pad_token_id=self.tokenizer.eos_token_id)
         elif self.args['generation_method'] == 'beam':
             seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=2.0,pad_token_id=self.tokenizer.eos_token_id, ) 
+
         all_truncated_predictions = []
         for i in range(len(seq2seqLMoutput['sequences'])):
             predictions = seq2seqLMoutput['sequences'][i]

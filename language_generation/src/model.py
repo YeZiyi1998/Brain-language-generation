@@ -49,8 +49,11 @@ class Decoding_model:
                 self.tokenizer = GPT2Tokenizer.from_pretrained(args['model_name'])
                 self.model = GPT2LMHeadModel.from_pretrained(args['model_name']).to(self.device)
         # add special token <brain/> and </brain>
-        if args['model_name'] not in ['llama-7b', 'vicuna-7b',]:
+        if self.tokenizer.eos_token is not None:
             self.tokenizer.pad_token = self.tokenizer.eos_token
+        else:
+            self.tokenizer.eos_token = self.tokenizer.mask_token
+            self.tokenizer.pad_token = self.tokenizer.mask_token
         
         if len(args['roi_selected']) > 0:
             self.new_tokens = []
@@ -125,7 +128,6 @@ class Decoding_model:
             for batch_id in range(labels_mask.shape[0]):
                 labels_tmp = labels[batch_id][content_true_mask[batch_id]==1]
                 logits_tmp = logits[batch_id][labels_mask[batch_id]==1]
-                logits_tmp
                 loss.append(torch.nn.functional.cross_entropy(logits_tmp, labels_tmp, reduction='mean'))
         else:
             labels = labels[content_true_mask==1]
