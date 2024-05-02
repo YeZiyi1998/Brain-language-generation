@@ -6,13 +6,20 @@ from torch.utils.data import DataLoader
 import tqdm
 import torch.optim as optim
 import json
-from model_config import model_name2path, model2hidden
-from model_utils import Prompt_model
 import wandb 
 import torch.optim.lr_scheduler as lr_scheduler
-from optimizer import Adam16
 import random
-
+try:
+    from settings import model_name2path, model2hidden
+    from model_utils import Prompt_model
+    from optimizer import Adam16
+    from GPT import GPT, GPT_Tokenizer
+except:
+    from src.settings import model_name2path, model2hidden
+    from src.model_utils import Prompt_model
+    from src.optimizer import Adam16
+    from src.GPT import GPT, GPT_Tokenizer
+    
 class Decoding_model:
     def put_data_into_cuda(self, content_prev,additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, ):
         content_prev, content_prev_sep, content_true, content_prev_mask, content_true_mask = content_prev.to(self.device), content_prev_sep.to(self.device), content_true.to(self.device), content_prev_mask.to(self.device), content_true_mask.to(self.device)
@@ -41,6 +48,11 @@ class Decoding_model:
                 self.tokenizer = LlamaTokenizer.from_pretrained(args['model_name'])
                 self.model = LlamaForCausalLM.from_pretrained(args['model_name']).to(self.device)
             self.model.half()
+        elif 'huth' in args['model_name']:
+            vocab = json.load(open('/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/vocab.json'))
+            path = "/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/model"
+            self.model = GPT(vocab=vocab, path=path, device=self.device)
+            self.tokenizer = GPT2Tokenizer(gpt=self.model)      
         elif 'gpt' in args['model_name']:
             if args['model_name'] in model_name2path.keys():
                 self.tokenizer = GPT2Tokenizer.from_pretrained(model_name2path[args['model_name']])
@@ -73,8 +85,6 @@ class Decoding_model:
 
         if args['enable_grad']==False:
             for new_token in self.new_tokens:
-                # 发现bug
-                # new_token_id = self.tokenizer.convert_tokens_to_ids(f"[{new_token}]")
                 new_token_id = self.tokenizer.convert_tokens_to_ids(f"{new_token}")
                 if 'gpt2' in self.args['model_name']:
                     self.model.transformer.wte.weight[new_token_id].requires_grad = True
@@ -86,6 +96,8 @@ class Decoding_model:
         
         if args['load_check_point']:
             self.load_check_point()
+        else:
+            self.prompt_model.init_encoding_model()
         
     def freeze_model(self,):
         for param in self.model.parameters():
@@ -140,7 +152,7 @@ class Decoding_model:
         content_all_mask = content_all_mask[:,1:]
         
         labels_mask = torch.zeros(content_all_mask.shape)
-        content_true_mask_sum = torch.sum(content_true_mask, dim=1).int()
+        content_true_mask_sum = torch.sum(content_true_mask, dim=1).int()            
         content_all_mask_sum = torch.sum(content_all_mask, dim=1).int()
         for batch_id in range(labels_mask.shape[0]):
             labels_mask[batch_id][content_all_mask_sum[batch_id]-content_true_mask_sum[batch_id]:content_all_mask_sum[batch_id]] = 1
@@ -161,14 +173,14 @@ class Decoding_model:
 
     def load_check_point(self, path=None):
         if path is None:
-            path = f'{self.args["checkpoint_path"]}/model.pt'
+            path = f'{self.args["llm_model_path"]}/model.pt'
         re = torch.load(path, map_location=torch.device('cpu'))
         if self.args['enable_grad']:
             self.model.load_state_dict(re['total_model'])
-        else:
-            self.prompt_model.token_weights.weight = re['new_tokens'].detach()
-                
+        self.prompt_model.token_weights.weight = re['new_tokens'].detach()        
         self.check_point = re
+        self.prompt_model.check_point = re
+        self.prompt_model.init_encoding_model()
 
     def get_distribute_loss(self, output, content_all_mask, content_all, content_true_mask, split=False, top_k = 100):
         logits = output.logits[:, :-1, :] # b * seq_all-1 * logits
@@ -251,10 +263,13 @@ class Decoding_model:
                 # content length有bug!
                 re['content_prev_tokens_length'].append(float(torch.sum(content_prev_mask[i]).detach().cpu().numpy()))
             if self.args['input_method'] == 'without_text':
-                output, content_all_mask = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
+                output, content_all_mask2 = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
             else:
-                output, content_all_mask = self.prompt_model(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
-            loss_list = self.get_loss(output, content_all_mask, content_true, content_true_mask, split=True) 
+                output, content_all_mask2 = self.prompt_model(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
+            if self.args['loss'] == 'all':
+                loss_list = self.get_loss(output, content_all_mask2, content_all, content_all_mask, split=True) 
+            else:
+                loss_list = self.get_loss(output, content_all_mask2, content_true, content_true_mask, split=True) 
             for loss in loss_list:
                 re['valid_loss'].append(loss.item())
             if len(re['valid_loss']) > 10 and self.args['mode'] in ['train','evaluate_test']:
@@ -292,8 +307,7 @@ class Decoding_model:
         
         best_loss = 100000000000
         # 改了early stop
-        early_stop = 10
-        min_epoch = 10
+        early_stop = self.args['early_stop']
         early_stop_epochs = 0
         parameters = []
         parameters += self.prompt_model.parameters()
@@ -334,7 +348,11 @@ class Decoding_model:
                     output, content_all_mask2 = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep,)
                 else:
                     output, content_all_mask2 = self.prompt_model(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep,)
-                loss = self.get_loss(output, content_all_mask2, content_true, content_true_mask)
+                # content_all_mask2 new content_all mask with brain tokens
+                if self.args['loss'] == 'all':
+                    loss = self.get_loss(output, content_all_mask2, content_all, content_all_mask)
+                else:
+                    loss = self.get_loss(output, content_all_mask2, content_true, content_true_mask)
                 if torch.isnan(loss):
                     print('nan loss')
                     continue
@@ -369,10 +387,13 @@ class Decoding_model:
                 content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask = self.put_data_into_cuda(content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask)
                 content_all, content_all_mask = content_all.to(self.device), content_all_mask.to(self.device)
                 if self.args['input_method'] == 'without_text':
-                    output, content_all_mask = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
+                    output, content_all_mask2 = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
                 else:
-                    output, content_all_mask = self.prompt_model(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
-                loss = self.get_loss(output, content_all_mask, content_true, content_true_mask)
+                    output, content_all_mask2 = self.prompt_model(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False)
+                if self.args['loss'] == 'all':
+                    loss = self.get_loss(output, content_all_mask2, content_all, content_all_mask)
+                else:
+                    loss = self.get_loss(output, content_all_mask2, content_true, content_true_mask)
                 valid_loss += loss.item()
             valid_loss /= len(valid_dataset)
             if self.args['additional_loss'] > 0:
@@ -396,7 +417,7 @@ class Decoding_model:
                 torch.save(best_model_wts, self.args['checkpoint_path']+'/model.pt')
             else:
                 early_stop_epochs += 1
-                if early_stop_epochs >= early_stop and epoch > min_epoch:
+                if early_stop_epochs >= early_stop:
                     print(f'early stop at epoch {epoch}')
                     with open(self.args['checkpoint_path']+'/'+'log'+'.txt', 'a') as fw:
                         fw.write(f'early stop at epoch {epoch}'+'\n')

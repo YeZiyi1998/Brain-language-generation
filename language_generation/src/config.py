@@ -7,21 +7,21 @@ import wandb
 dataset2args = {
     'Huth':{
         'test_trail_ids': [0,0.2],
-        'valid_trail_ids': [0.2,0.4]
+        'valid_trail_ids': [0,0.2]
     },
     'Pereira':{
         'test_trail_ids': [0,0.2],
-        'valid_trail_ids': [0.2,0.4]
+        'valid_trail_ids': [0,0.2]
     },
     'Narratives':{
         'test_trail_ids': [0,0.2],
-        'valid_trail_ids': [0.2,0.4]
+        'valid_trail_ids': [0,0.2]
     }
 }
 
 def get_config():
     parser = argparse.ArgumentParser(description='Specify config args for training models for brain language generation')
-    parser.add_argument('-model_name', help='choose from {gpt2,gpt2-medium,gpt2-large,gpt2-xl,llama-2}', default = "gpt2" ,required=False)
+    parser.add_argument('-model_name', help='choose from {gpt2,gpt2-medium,gpt2-large,gpt2-xl,llama-2, huth}', default = "gpt2" ,required=False)
     parser.add_argument('-method', help='choose from {decoding}', default = "decoding" ,required=False)
     parser.add_argument('-task_name', help='examples: Pereira_example', default = "Pereira_example" ,required=False)
     parser.add_argument('-test_trail_ids', default = "", required=False)
@@ -29,15 +29,16 @@ def get_config():
     parser.add_argument('-random_number', default = 1, type = int, required=False)
     parser.add_argument('-batch_size', default = 1, type = int, required=False)
     parser.add_argument('-fmri_pca', default = "True" ,required=False)
-    parser.add_argument('-cuda', default = "3" ,required=False)
+    parser.add_argument('-cuda', default = "0" ,required=False)
     parser.add_argument('-layer', type = int, default = -1 ,required=False)
     parser.add_argument('-num_epochs',  type = int, default = 100 ,required=False)
     parser.add_argument('-lr',  type = float, default = 1e-3, required=False)
     parser.add_argument('-dropout',  type = float, default = 0.5, required=False)
+    parser.add_argument('-brain_embed_size',  type = float, default = 1000, required=False)
     parser.add_argument('-checkpoint_path', default = "" ,required=False)
     parser.add_argument('-load_check_point', default = "False" ,required=False)
     parser.add_argument('-enable_grad', default = "False" ,required=False)
-    parser.add_argument('-mode', default = "train" , choices = ['train','evaluate', 'all',],required=False)
+    parser.add_argument('-mode', default = "train" , choices = ['train','evaluate', 'all', 'end2end'],required=False)
     parser.add_argument('-additional_loss', default = 0, type = float, required=False)
     parser.add_argument('-fake_input', default = 0, type = float, required=False)
     parser.add_argument('-add_end', default = "False", required=False)
@@ -49,7 +50,8 @@ def get_config():
     parser.add_argument('-generation_method', default = 'beam', type=str, required=False)
     parser.add_argument('-pos', default = 'False', type=str, required=False)
     parser.add_argument('-output', default = 'test', type=str, required=False)
-    parser.add_argument('-data_spliting', default = 'random', choices = ['random','cross_story'], type=str, required=False)
+    parser.add_argument('-data_spliting', default = 'random', choices = ['random','cross_story','end2end'], type=str, required=False)
+    parser.add_argument('-loss', default = 'continuation', choices = ['continuation','all'], type=str, required=False)
     parser.add_argument('-brain_model', default = 'mlp', type=str, required=False)
     parser.add_argument('-weight_decay', default = 1.0, type=float, required=False)
     parser.add_argument('-l2', default = 0.0, type=float, required=False)
@@ -62,8 +64,13 @@ def get_config():
     parser.add_argument('-pretrain_lr', default = 0.001, type=float,required=False)
     parser.add_argument('-data_size', default = -1, type=int,required=False)
     parser.add_argument('-results_path', default = 'results', type=str,required=False)
-    parser.add_argument('-dataset_path', default = '../../example_dataset/', type=str,required=False)
+    parser.add_argument('-dataset_path', default = '../../dataset/', type=str,required=False)
     parser.add_argument('-shuffle_times', default = -1, type=int,required=False)
+    parser.add_argument('-prev_mask_len', default = 32, type=int,required=False)
+    parser.add_argument('-max_generate_len', default = 32, type=int,required=False)
+    parser.add_argument('-early_stop', default = 10, type=int,required=False)
+    parser.add_argument('-use_bad_words_ids', default = 'False', type=str,required=False)
+    parser.add_argument('-repetition_penalty', default = 2.0, type=float, required=False)    
     args = vars(parser.parse_args())
     args['fmri_pca'] = args['fmri_pca'] == 'True'
     args['load_check_point'] = args['load_check_point'] == 'True'
@@ -73,6 +80,7 @@ def get_config():
     args['pos'] = args['pos'] == 'True'
     args['normalized'] = args['normalized'] == 'True'
     args['evaluate_log'] = args['evaluate_log'] == 'True'
+    args['use_bad_words_ids'] = args['use_bad_words_ids'] == 'True'
     args['roi_selected'] = json.loads(args['roi_selected'])
     tmp_dataset2args = dataset2args[args['task_name'].split('_')[0]]
     for k, v in tmp_dataset2args.items():
@@ -93,9 +101,12 @@ def get_config():
         args['checkpoint_path'] = f'../{results_path}/' + args['checkpoint_path']
     if os.path.exists(args['checkpoint_path']) == False:
         os.makedirs(args['checkpoint_path'])
-        
+    args["llm_model_path"] = args['checkpoint_path']
+    
+    print(args['checkpoint_path'])
+    
     # write info
-    if args['mode'] in ['train', 'all']:
+    if args['mode'] in ['train', 'all', 'end2end']:
         json.dump(args, open(args['checkpoint_path']+'/info.json', 'w'))
     
     # setting wandb environment

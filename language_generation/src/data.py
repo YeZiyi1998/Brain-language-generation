@@ -52,21 +52,9 @@ class FMRI_dataset():
         return input_dataset
     
     def pack_info(self, content_prev, additional_bs, content_true, trail_id,id):
-        if self.args['model_name'] in ['llama-7b',]:
-            self.add_special_tokens = True
-            content_all = self.tokenizer.encode_plus(content_prev+' '+content_true, max_length=64, truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length',)
-            content_all['input_ids'] = content_all['input_ids'][:,1:]
-            content_all['attention_mask'] = content_all['attention_mask'][:,1:]
-            content_true = self.tokenizer.encode_plus(content_true.strip(), max_length=32, truncation=True, return_tensors='pt',padding='max_length',)
-            content_true['input_ids'] = content_true['input_ids'][:,1:]
-            content_true['attention_mask'] = content_true['attention_mask'][:,1:]
-            content_prev = self.tokenizer.encode_plus(content_prev, max_length=32, truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length', )
-            content_prev['input_ids'] = content_prev['input_ids'][:,1:]
-            content_prev['attention_mask'] = content_prev['attention_mask'][:,1:]
-        else:
-            content_all = self.tokenizer.encode_plus(content_prev+' '+content_true, max_length=64, truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length')
-            content_true = self.tokenizer.encode_plus(' '+content_true, max_length=32, truncation=True, return_tensors='pt',padding='max_length')
-            content_prev = self.tokenizer.encode_plus(content_prev, max_length=32, truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length')
+        content_all = self.tokenizer.encode_plus(content_prev+' '+content_true, max_length=self.args['prev_mask_len'] + self.args['max_generate_len'], truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length')
+        content_true = self.tokenizer.encode_plus(' '+content_true, max_length=self.args['max_generate_len'], add_special_tokens = self.add_special_tokens, truncation=True, return_tensors='pt',padding='max_length')
+        content_prev = self.tokenizer.encode_plus(content_prev, max_length=self.args['prev_mask_len'], truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length')
         return {
                 'content_prev': content_prev['input_ids'][0], 
                 'content_prev_mask': content_prev['attention_mask'][0], 
@@ -105,7 +93,7 @@ class FMRI_dataset():
         tmp_id = 0
         if 'Pereira' in args['task_name']:
             dataset_name, subject_name = args['task_name'].split('_')
-            pere_dataset = pickle.load(open(f'{dataset_path}{subject_name}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}{subject_name}.wq.pkl.dic','rb'))
+            pere_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}/{subject_name}.wq.pkl.dic','rb'))
             if args['normalized']:
                 self.normalized(pere_dataset)
             for story in input_dataset.keys():
@@ -126,7 +114,7 @@ class FMRI_dataset():
             subject_name = args['task_name'].split('_')[1]
             content_true2idx = {}
             for story in args['Narratives_stories']:
-                Narratives_dataset = pickle.load(open(f'{dataset_path}{story}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}{story}.wq.pkl.dic','rb'))
+                Narratives_dataset = pickle.load(open(f'{dataset_path}/{story}.pca1000.wq.pkl.dic','rb')) if args['fmri_pca'] else pickle.load(open(f'{dataset_path}/{story}.wq.pkl.dic','rb'))
                 for subject in [f'sub-{subject_name}']:
                     for item_id, item in enumerate(input_dataset[story][subject]):
                         sid = int(subject.split('-')[1])
@@ -146,12 +134,33 @@ class FMRI_dataset():
                             tmp_id += 1
                             if len(packed_info['content_true']) > 0 and len(packed_info['content_prev']) > 0:
                                 self.inputs.append(packed_info)
+        # testing story: Where There’s Smoke
+        # Where There’s Smoke
+        elif 'Huth' in args['task_name'] and args['mode'] == 'end2end':
+            dataset_name = args['task_name'].split('_')[0]
+            subject_name = args['task_name'].split('_')[1]
+            ds_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.pca1000.wq.pkl.dic','rb'))
+            for sid, story in enumerate(input_dataset.keys()):
+                if story == 'wheretheressmoke':
+                    trail_id = 0.3
+                else:
+                    continue
+                content_prev = 'I'
+                for item_id, item in enumerate(input_dataset[story]):
+                    k = 0
+                    additional_bs = np.array([ds_dataset[story]['fmri'][idx] for idx in item['word'][k]['additional']])
+                    content_true = item['word'][k]['content']
+                    id2info[tmp_id] = {'story':story, 'item_id':item_id, 'k': k}
+                    packed_info = self.pack_info(content_prev, additional_bs, content_true, trail_id, id = tmp_id)
+                    tmp_id += 1
+                    self.inputs.append(packed_info)
+            
         elif 'Huth' in args['task_name']:
             dataset_name = args['task_name'].split('_')[0]
             subject_name = args['task_name'].split('_')[1]
-            data_info2 = json.load(open('../dataset_info/Huth.json'))
+            data_info2 = json.load(open('../../dataset_info/Huth.json'))
             data_info2random_number = [0.2 * i for i in range(len(data_info2))]
-            ds_dataset = pickle.load(open(f'{dataset_path}{subject_name}.pca1000.wq.pkl.dic','rb'))
+            ds_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.pca1000.wq.pkl.dic','rb'))
             content_true2idx = {}
             for sid, story in enumerate(input_dataset.keys()):
                 if story not in data_info2:
@@ -169,6 +178,8 @@ class FMRI_dataset():
                             content_true += '<|endoftext|>'
                         if args['data_spliting'] == 'cross_story':
                             trail_id = data_info2random_number[data_info2.index(story)]
+                        if args['data_spliting'] == 'end2end':
+                            trail_id = 0.3 if story == 'wheretheressmoke' else 0.6
                         else:
                             trail_id = content_true2idx[content_true]
                         id2info[tmp_id] = {'story':story, 'item_id':item_id, 'k': k}
@@ -180,6 +191,15 @@ class FMRI_dataset():
                             self.inputs = self.inputs[:-1]
         self.pack_data_from_input(args)
         json.dump(id2info, open(self.args['checkpoint_path']+'/'+'id2info.json', 'w'))
+    
+        if args['use_bad_words_ids']:
+            self.get_bad_word_ids()
+            self.decoding_model.prompt_model.bad_words_ids = np.array(self.bad_word_ids).reshape(-1,1).tolist()
+    
+    def get_bad_word_ids(self,):
+        vocabulary = np.unique([item['content_true'] for item in self.test])
+        print('length of vocabulary: ', len(vocabulary))
+        self.bad_word_ids = np.setdiff1d(np.array(list(self.tokenizer.get_vocab().values())), vocabulary)
     
     def pack_data_from_input(self, args, ):
         self.train = []
@@ -205,5 +225,5 @@ class FMRI_dataset():
             self.train = self.train[:args['data_size']]
         
         self.train_dataset = Splited_FMRI_dataset(self.train, args = args)
-        self.valid_dataset = Splited_FMRI_dataset(self.valid, args = args)
+        self.valid_dataset = Splited_FMRI_dataset(self.valid, args = args) if len(self.valid) > 0 else Splited_FMRI_dataset(self.test, args = args)
         self.test_dataset = Splited_FMRI_dataset(self.test, args = args)

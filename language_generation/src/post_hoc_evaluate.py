@@ -231,10 +231,12 @@ def is_only_dot_space(text):
         return False
 
 if __name__ == '__main__':
+    result_path = 'Huth_1'
+    
     # comparing BrainLLM and PerBrainLLM
     base_path = '../results/'
-    model_dir_list = [{'path_name':base_path + 'example', 'file_name':'test.json'}]
-    control_dir_list = [{'path_name':base_path + 'example', 'file_name':'test_permutated.json'}]
+    model_dir_list = [{'path_name':base_path + result_path, 'file_name':'test.json'}]
+    control_dir_list = [{'path_name':base_path + result_path, 'file_name':'test_permutated.json'}]
     model_result = get_iterate_results(model_dir_list)
     control_result = get_iterate_results(control_dir_list)
     if len(model_result['content_prev']) < len(control_result['content_prev']):
@@ -245,10 +247,10 @@ if __name__ == '__main__':
     
     show_significance(model_result, control_result)
     
-    # comparing BrainLLM and LLM
+    # comparing BrainLLM and StdLLM
     base_path = '../results/'
-    model_dir_list = [{'path_name':base_path + 'example', 'file_name':'test.json'}]
-    control_dir_list = [{'path_name':base_path + 'example', 'file_name':'test_nobrain.json'}]
+    model_dir_list = [{'path_name':base_path + result_path, 'file_name':'test.json'}]
+    control_dir_list = [{'path_name':base_path + result_path, 'file_name':'test_nobrain.json'}]
     model_result = get_iterate_results(model_dir_list)
     control_result = get_iterate_results(control_dir_list)
     if len(model_result['content_prev']) < len(control_result['content_prev']):
