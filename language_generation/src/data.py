@@ -6,7 +6,25 @@ import random
 import gc
 import json
 import copy
-from sklearn.preprocessing import StandardScaler
+class MyStandardScaler:
+    def __init__(self):
+        self.mean = 0
+        self.std = 0
+    
+    def fit(self, X):
+        self.mean = np.mean(X, axis=0)
+        self.std = np.std(X, axis=0)
+    
+    def transform(self, X):
+        return (X - self.mean) / self.std
+    
+    def fit_transform(self, X):
+        self.fit(X)
+        return self.transform(X)
+try:
+    from sklearn.preprocessing import StandardScaler
+except:
+    StandardScaler = MyStandardScaler
 
 class Splited_FMRI_dataset(Dataset):
     def __init__(self,inputs,most_epoch=-1, args = None):
@@ -35,7 +53,7 @@ class Splited_FMRI_dataset(Dataset):
 class FMRI_dataset():
     def add_context_noise(self, input_dataset):
         self.mean_embedding = torch.mean(self.decoding_model.model.transformer.wte.weight, axis=0)
-        self.decoding_model.tokenizer.add_tokens('[UNK]')
+        self.decoding_model.tokenizer.add_tokens(['[UNK]'])
         new_token_id = self.decoding_model.tokenizer.convert_tokens_to_ids('[UNK]')
         self.decoding_model.model.resize_token_embeddings(len(self.decoding_model.tokenizer))
         self.decoding_model.model.transformer.wte.weight[new_token_id].data = self.mean_embedding.detach()

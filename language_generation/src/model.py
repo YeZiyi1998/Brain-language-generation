@@ -51,8 +51,9 @@ class Decoding_model:
         elif 'huth' in args['model_name']:
             vocab = json.load(open('/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/vocab.json'))
             path = "/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/model"
-            self.model = GPT(vocab=vocab, path=path, device=self.device)
-            self.tokenizer = GPT2Tokenizer(gpt=self.model)      
+            self.top_model = GPT(vocab=vocab, path=path, device=self.device,)
+            self.model = self.top_model.model
+            self.tokenizer = GPT_Tokenizer(gpt=self.top_model)      
         elif 'gpt' in args['model_name']:
             if args['model_name'] in model_name2path.keys():
                 self.tokenizer = GPT2Tokenizer.from_pretrained(model_name2path[args['model_name']])
@@ -88,10 +89,12 @@ class Decoding_model:
                 new_token_id = self.tokenizer.convert_tokens_to_ids(f"{new_token}")
                 if 'gpt2' in self.args['model_name']:
                     self.model.transformer.wte.weight[new_token_id].requires_grad = True
-                elif 'llama' in self.args['model_name']:
+                elif 'llama' in self.args['model_name']: 
                     self.model.model.embed_tokens.weight[new_token_id].requires_grad = True
+                elif 'huth' in self.args['model_name']:
+                    self.model.transformer.tokens_embed.weight[new_token_id].requires_grad = True
         self.model = self.model.to(self.device)
-        self.prompt_model = Prompt_model(args, self.model, self.tokenizer, self.device, self.new_tokens)
+        self.prompt_model = Prompt_model(args, self.model, self.tokenizer, self.device, self.new_tokens, top_model= self.top_model if 'huth' in self.args['model_name'] else None)
         self.max_norm = 0.1 if args['model_name'] in ['llama-7b','llama-7b-old'] else 10
         
         if args['load_check_point']:

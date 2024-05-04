@@ -57,5 +57,7 @@ if __name__ == '__main__':
     if args['mode'] in ['end2end',]:
         decoding_model.args['load_check_point'] = True
         decoding_model.load_check_point()
-        decoding_model.test(dataset.test_dataset, args['output'])
+        # decoding_model.test(dataset.test_dataset, args['output'])
+        decoding_model.test_beam(dataset.test_dataset, args['output'])
+        
 

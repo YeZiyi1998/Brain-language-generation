@@ -1,6 +1,10 @@
 import torch
 import torch.nn as nn
 import random
+try:
+    from GPT import generate_beam
+except:
+    from src.GPT import generate_beam
 
 class MLP(torch.nn.Module):
     def __init__(self,num_input,num_classes,position_index=False,num_layers = 2, args=None) :
@@ -79,8 +83,8 @@ class Linear(nn.Module):
             self.linear = nn.Linear(input_size,output_size, dtype=torch.float32)
 
     def forward(self, input, position_index = False):
-        input = self.linear(input)
-        return input
+        return self.linear(input)
+         
 
 class MultiMLP(nn.Module):
     def __init__(self,num_input,num_classes,position_index=False,num_layers = 2, args=None):
@@ -133,8 +137,9 @@ class Encoding_model(nn.Module):
         return self.model(x, position_index = position_index)
 
 class Prompt_model(nn.Module):
-    def __init__(self, args, model, tokenizer, device,new_tokens):
+    def __init__(self, args, model, tokenizer, device,new_tokens,top_model=None):
         super(Prompt_model, self).__init__()
+        self.top_model = top_model
         self.model = model
         self.args = args
         self.device = device
@@ -147,6 +152,8 @@ class Prompt_model(nn.Module):
                 tmp_weight = self.model.transformer.wte.weight[new_token_id]
             elif 'llama' in self.args['model_name']:
                 tmp_weight = self.model.model.embed_tokens.weight[new_token_id]
+            elif 'huth' in self.args['model_name']:
+                tmp_weight = self.model.transformer.tokens_embed.weight[new_token_id]
             tmp_weights.append(tmp_weight)
         tmp_weights = torch.stack(tmp_weights,)
         self.token_weights = nn.Parameter(tmp_weights.clone().detach(), requires_grad=True)
@@ -166,7 +173,7 @@ class Prompt_model(nn.Module):
                 self.encoding_model.to(self.device)   
         
     def words2embedding(self, input_ids):
-        if self.args['model_name'] in ['llama-7b',]:
+        if self.args['model_name'] in ['llama-7b', 'huth']:
             return self.model.get_input_embeddings()(input_ids)
         else:
             if type(input_ids) == list:
@@ -296,10 +303,22 @@ class Prompt_model(nn.Module):
         if self.args['generation_method'] == 'greedy':
             seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=1,do_sample=False, pad_token_id=self.tokenizer.eos_token_id)
         elif self.args['generation_method'] == 'beam':
-            if self.args['use_bad_words_ids']:
-                seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=self.args['repetition_penalty'],pad_token_id=self.tokenizer.eos_token_id, bad_words_ids=self.bad_words_ids) 
+            if self.args['model_name'] == 'huth' and self.args['mode'] != 'evaluate':
+                bos_token_id = self.tokenizer.eos_token_id
+                # batch_size should be 1 in huth generation
+                if self.args['use_bad_words_ids']:
+                    seq2seqLMoutput = generate_beam(self.model, self.tokenizer, beam_size = 5, embed= content_prev, bad_words_ids=self.bad_words_ids, ) 
+                else:
+                    seq2seqLMoutput = generate_beam(self.model, self.tokenizer, beam_size = 5, embed= content_prev, ) 
             else:
-                seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=self.args['repetition_penalty'],pad_token_id=self.tokenizer.eos_token_id, ) 
+                if self.args['model_name'] == 'huth':
+                    bos_token_id = self.tokenizer.eos_token_id
+                else:
+                    bos_token_id = self.tokenizer.bos_token_id
+                if self.args['use_bad_words_ids']:
+                    seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=self.args['repetition_penalty'], pad_token_id=self.tokenizer.eos_token_id, bad_words_ids=self.bad_words_ids, bos_token_id=bos_token_id) 
+                else:
+                    seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=self.args['repetition_penalty'], pad_token_id=self.tokenizer.eos_token_id, bos_token_id=bos_token_id) 
 
         all_truncated_predictions = []
         for i in range(len(seq2seqLMoutput['sequences'])):

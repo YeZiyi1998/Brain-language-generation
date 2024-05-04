@@ -61,7 +61,7 @@ def preprocess_re(re, mask=None,dataset_name=None):
     if 'processed' in re.keys() and re['processed']:
         return re
     for i in range(len(re['content_true'])):
-        re['content_true'][i] = re['content_true'][i].replace('<|endoftext|>','').replace('??','').replace('⁇','').replace('</s>','').replace('<unk>','')
+        re['content_true'][i] = re['content_true'][i].replace('<|endoftext|>','').replace('??','').replace('⁇','').replace('</s>','').replace('<unk>','').replace('  ', ' ')
     re['content_pred_tokens'] = []
     re['content_true_tokens'] = []
 
@@ -119,8 +119,11 @@ def language_evaluate_mask_with_sig(re, mask=None, dataset_name=None):
         for i in range(len(re['content_pred_tokens'])):
             re['corpus_bleu_score'][len(weight)].append(corpus_bleu([re['content_true_tokens'][i]], [re['content_pred_tokens'][i]], weights = weight, smoothing_function = chencherry.method1))
     re['wer'] = []
+    re['meteor'] = []
     for i in range(len(re['content_pred_tokens'])):
         re['wer'].append(wer(re['content_true_tokens'][i],re['content_pred_tokens'][i]))
+        re['meteor'].append(meteor_score.meteor_score([re['content_true_tokens'][i]], re['content_pred_tokens'][i]))
+     
     return re
 
 def is_only_dot_space(text):
@@ -132,11 +135,11 @@ def is_only_dot_space(text):
         return False
 
 if __name__ == '__main__':
-    checkpoint_path = 'Huth_1_gpt2_grad'
+    checkpoint_path = 'Huth_1_huth'
     result = json.load(open(f'../results/{checkpoint_path}/test.json'))
     language_evaluate_mask_with_sig(result)
 
-    output_str = f"corpus_bleu_score_1: {'%.3f' % np.mean(result['corpus_bleu_score'][1])} rouge_1: {'%.3f' % np.mean(result['rouge_scores']['rouge-1']['r'])} rouge_l: {'%.3f' % np.mean(result['rouge_scores']['rouge-l']['r'])} wer: {'%.3f' % np.mean(result['wer'])}"
+    output_str = f"corpus_bleu_score_1: {'%.3f' % np.mean(result['corpus_bleu_score'][1])} rouge_1: {'%.3f' % np.mean(result['rouge_scores']['rouge-1']['r'])} rouge_l: {'%.3f' % np.mean(result['rouge_scores']['rouge-l']['r'])} wer: {'%.3f' % np.mean(result['wer'])} meteor: {'%.3f' % np.mean(result['meteor'])}"
     print(output_str)
 
 

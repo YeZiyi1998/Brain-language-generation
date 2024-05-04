@@ -231,7 +231,7 @@ def is_only_dot_space(text):
         return False
 
 if __name__ == '__main__':
-    result_path = 'Huth_1'
+    result_path = 'Huth_1_gpt2-xl_0503'
     
     # comparing BrainLLM and PerBrainLLM
     base_path = '../results/'
