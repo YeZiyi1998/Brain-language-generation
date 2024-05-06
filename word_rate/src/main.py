@@ -60,9 +60,9 @@ if __name__ == '__main__':
     os.makedirs(f'{args["checkpoint_path"]}', exist_ok=True)
 
     # 创建岭回归模型实例，alpha是正则化强度
-    # model_ridge = Ridge(alpha = 1.0)
+    model_ridge = Ridge(alpha = 1.0)
     # model_ridge = LinearRegression()
-    model_ridge = svm.SVC()
+    # model_ridge = svm.SVR()
     
     X_train, y_train = dataset2xy(dataset.train_dataset) 
     X_test, y_test = dataset2xy(dataset.test_dataset)

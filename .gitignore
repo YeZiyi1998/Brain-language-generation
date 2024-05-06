@@ -18,6 +18,4 @@ slurm-*.out
 data_lm/
 end2end_generation/results/*
 word_rate/results/*
-test.txt
-test.py
-language_generation_old/
+trash/

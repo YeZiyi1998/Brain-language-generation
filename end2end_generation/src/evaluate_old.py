@@ -88,11 +88,19 @@ def segment(re, chunk_size=10):
     re['content_pred_tokens'] = [sum(re['content_pred_tokens'][i:i+chunk_size], []) for i in range(0, len(re['content_pred_tokens']), chunk_size)]
     re['content_true_tokens'] = [sum(re['content_true_tokens'][i:i+chunk_size], []) for i in range(0, len(re['content_true_tokens']), chunk_size)]
 
+def split_content_pred_by_results(re,):
+    re['content_pred'] = []
+    result = re['result'][-1]
+    l = 0
+    for i in range(len(re['content_pred_old'])):
+        re['content_pred'].append(' '.join(result[l:l+len(re['content_pred_old'][i][0])]))
+        l += len(re['content_pred_old'][i][0])
+
 def language_evaluate_mask_with_sig(re, mask=None, dataset_name=None):
     re['content_pred_old'] = copy.deepcopy(re['content_pred'])
+    split_content_pred_by_results(re)
     re = preprocess_re(re, mask, dataset_name = dataset_name)
     segment(re)
-
     rouge = Rouge()
     try:
         rouge_scores = rouge.get_scores(re['content_pred'],re['content_true'], avg = False)
@@ -136,7 +144,7 @@ def is_only_dot_space(text):
 
 if __name__ == '__main__':
     checkpoint_path = 'Huth_1_huth'
-    result = json.load(open(f'../results/{checkpoint_path}/test.json'))
+    result = json.load(open(f'../results/{checkpoint_path}/test_nobrain2.json'))
     language_evaluate_mask_with_sig(result)
 
     output_str = f"corpus_bleu_score_1: {'%.3f' % np.mean(result['corpus_bleu_score'][1])} rouge_1: {'%.3f' % np.mean(result['rouge_scores']['rouge-1']['r'])} rouge_l: {'%.3f' % np.mean(result['rouge_scores']['rouge-l']['r'])} wer: {'%.3f' % np.mean(result['wer'])} meteor: {'%.3f' % np.mean(result['meteor'])}"

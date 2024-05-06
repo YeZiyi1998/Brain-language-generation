@@ -30,8 +30,8 @@ class End2End_model(Decoding_model):
         if ('huth' in args['model_name']) is False:
             self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
         self.top_model.prompt_model = self.prompt_model
-        self.lm = LanguageModel(self.top_model, decoder_vocab)
         self.decoder = Decoder()
+        self.lm = LanguageModel(self.top_model, decoder_vocab)
         
     # 可行方法
     # (1）brain + text prompt (截断) -> continuation
@@ -107,7 +107,8 @@ class End2End_model(Decoding_model):
         
         for content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(test_dataloader, mininterval=300):
             # estimate word rate
-            word_rate = math.ceil(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
+            word_rate = int(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
+            # word_rate = math.ceil(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
             ncontext = min(5, word_rate)
             
             # input construction

@@ -131,28 +131,14 @@ class GPT():
         content_all = content_all[:,-500:] # beam_size * seq_length * embed_size
         content_all_mask = torch.ones(content_all.shape).int().to(self.device)
         content_all = content_all.to(self.device)
-        
-        # content_all_copy = copy.deepcopy(content_all)
-        
+
         content_all, content_all_mask = self.prompt_model.tokenize(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, mode='test')
         
-        content_all = content_all[:,6:,:]
-        content_all_mask = content_all_mask[:,6:]
-        
         with torch.no_grad():
-            output = self.model(inputs_embeds=content_all, attention_mask = content_all_mask)
-        
-        # # jiayudebug snippet
-        # inputs = ''
-        # while inputs != 'continue':
-        #     try:
-        #         print(eval(inputs))
-        #     except Exception as e:
-        #         print('error:', e)
-        #         pass
-        #     inputs = input()    
+            output = self.model(inputs_embeds=content_all, attention_mask = content_all_mask) 
         
         probs = softmax(output.logits, dim = 2).detach().cpu().numpy()
+    
         return probs
 
 class Top_model(GPT):
@@ -217,7 +203,7 @@ class LanguageModel():
             probs = self.model.get_probs(context_arr)
         else:
             probs = self.model.get_probs_generation(context_arr, additional_bs=additional_bs, content_prev_sep=content_prev_sep, additional_bs_mask=additional_bs_mask)
-        return probs[:, len(contexts[0]) - 1] 
+        return probs[:, - 1] 
     
     def beam_propose(self, beam, context_words, additional_bs=None,additional_bs_mask=None,content_prev_sep=None):
         """get possible extension words for each hypothesis in the decoder beam
@@ -238,6 +224,7 @@ class LanguageModel():
                 beam_nucs.append((nuc_words, nuc_logprobs))
             return beam_nucs
 
+# 淘汰掉的用法？
 def generate_beam(model, tokenizer, beam_size: int = 5, embed=None, entry_length=32, temperature=1., stop_token: str = '.', bad_words_ids = None, context_ids = []):
     model.eval()
     # stop_token_index = tokenizer.encode(stop_token)[0]
@@ -288,5 +275,5 @@ def generate_beam(model, tokenizer, beam_size: int = 5, embed=None, entry_length
     output_list = tokens.cpu().numpy()
     order = scores.argsort(descending=True)
     output_list = np.array([output_list[i] for i in order])
-    return {'sequences': torch.tensor(output_list)}
+    return torch.tensor(output_list)[0]
     

@@ -109,7 +109,7 @@ class Decoding_model:
     def get_model_dict(self,):
         re = {'new_tokens':[]}
         for new_token in self.new_tokens:
-            new_token_id = self.tokenizer.convert_tokens_to_ids(f"{new_token}")
+            # new_token_id = self.tokenizer.convert_tokens_to_ids(f"{new_token}")
             re['new_tokens'] = self.prompt_model.token_weights.detach()
         
         if self.args['enable_grad']:
@@ -180,7 +180,7 @@ class Decoding_model:
         re = torch.load(path, map_location=torch.device('cpu'))
         if self.args['enable_grad']:
             self.model.load_state_dict(re['total_model'])
-        self.prompt_model.token_weights.weight = re['new_tokens'].detach()        
+        self.prompt_model.token_weights.data = re['new_tokens'].detach()        
         self.check_point = re
         self.prompt_model.check_point = re
         self.prompt_model.init_encoding_model()
@@ -247,6 +247,7 @@ class Decoding_model:
             content_all, content_all_mask = content_all.to(self.device), content_all_mask.to(self.device)
             all_predicted_tokens = self.prompt_model.generate(content_prev, content_prev_mask, additional_bs, additional_bs_mask, content_prev_sep,mode='test')
             data_id = data_id.numpy().tolist()
+            
             for i in range(content_all.shape[0]):
                 re['content_true'].append(self.tokenizer.convert_tokens_to_string(self.tokenizer.convert_ids_to_tokens(content_true[i])).replace('<|endoftext|>','').replace('⁇','').replace('</s>','').replace('<unk>','').strip())
                 predicted_tokens = all_predicted_tokens[i]
@@ -275,12 +276,12 @@ class Decoding_model:
                 loss_list = self.get_loss(output, content_all_mask2, content_true, content_true_mask, split=True) 
             for loss in loss_list:
                 re['valid_loss'].append(loss.item())
-            if len(re['valid_loss']) > 10 and self.args['mode'] in ['train','evaluate_test']:
+            if len(re['content_pred']) > 10 and self.args['mode'] in ['train','evaluate_test']:
                 break
 
         if file_name is not None:
             with open(self.args['checkpoint_path']+'/'+file_name+'.txt', 'w') as f:
-                for i in range(len(re['valid_loss'])):
+                for i in range(len(re['content_prev'])):
                     f.write(re['content_prev'][i]+'\n')
                     f.write('content_pred: '+re['content_pred'][i] + '\n')
                     f.write('content_true: '+re['content_true'][i] + '\n')
@@ -288,8 +289,7 @@ class Decoding_model:
             
             json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+'.json', 'w'))
 
-    def pre_train(self, dataset, dataloader, optimizer, parameters):
-        
+    def pre_train(self, dataset, dataloader, optimizer, parameters, epoch = 0):
         # optimizer = optim.SGD(filter(lambda p: p.requires_grad, parameters), lr=self.args['pretrain_lr'])
         total_additional_loss = 0
         for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask,content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(dataloader, mininterval=300):
@@ -325,8 +325,8 @@ class Decoding_model:
         
         for epoch in range(self.args['pretrain_epochs']):
             self.prompt_model.train()
-            total_loss = self.pre_train(train_dataset, train_dataloader, pretrain_optimizer, parameters)
-            valid_loss = self.pre_train(valid_dataset, valid_dataloader, pretrain_optimizer, parameters)
+            total_loss = self.pre_train(train_dataset, train_dataloader, pretrain_optimizer, parameters, epoch=epoch)
+            valid_loss = self.pre_train(valid_dataset, valid_dataloader, pretrain_optimizer, parameters, epoch=epoch)
             
             if test_dataloader is not None:
                 self.pre_train(test_dataset, test_dataloader, optimizer, pretrain_optimizer, parameters)
@@ -347,6 +347,7 @@ class Decoding_model:
             for content_prev, additional_bs, content_prev_sep, content_true,content_prev_mask,content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(train_dataloader, mininterval=300):
                 content_prev, additional_bs,content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask = self.put_data_into_cuda(content_prev,additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask)   
                 content_all, content_all_mask = content_all.to(self.device), content_all_mask.to(self.device)
+                
                 if self.args['input_method'] == 'without_text':
                     output, content_all_mask2 = self.prompt_model(content_true, content_true_mask, additional_bs, additional_bs_mask, content_prev_sep,)
                 else:

@@ -3,138 +3,12 @@ import torch.nn as nn
 import random
 try:
     from GPT import generate_beam
-except:
+    from sub_models import Encoding_model 
+except Exception as e:
+    # print(e)
     from src.GPT import generate_beam
+    from src.sub_models import Encoding_model 
 
-class MLP(torch.nn.Module):
-    def __init__(self,num_input,num_classes,position_index=False,num_layers = 2, args=None) :
-        super(MLP,self).__init__()
-        self.num_input=num_input
-        self.num_classes=num_classes
-        dropout = 0.5 if 'dropout' not in args.keys() else args['dropout']
-        max_seq_len = 5
-        embedding_size = self.num_input
-        self.args = args
-        if self.args['input_method'] == 'mask_input':
-            self.position_embedding = nn.Parameter(torch.empty(max_seq_len, num_classes), requires_grad=True)
-            nn.init.uniform_(self.position_embedding, -1, 1)
-        elif position_index:   
-            self.position_embedding = nn.Parameter(torch.empty(max_seq_len, embedding_size), requires_grad=True) # 
-            nn.init.uniform_(self.position_embedding, -1, 1)
-        net = nn.Sequential()
-        num_layers = args['num_layers']
-        for i in range(num_layers):
-            if i==0:
-                if args['pos']:
-                    net.add_module(f'linear{i+1}',nn.Linear(self.num_input,num_input,bias=False, dtype=torch.float32))    
-                else:
-                    net.add_module(f'linear{i+1}',nn.Linear(self.num_input,num_input, dtype=torch.float32))
-            else:
-                net.add_module(f'linear{i+1}',nn.Linear(num_input,num_input,bias=False, dtype=torch.float32))
-            if args['activation'] == 'relu':
-                net.add_module(f'ReLu{i+1}',nn.ReLU())
-            elif args['activation'] == 'relu6':
-                net.add_module(f'ReLu{i+1}',nn.ReLU6())
-            elif args['activation'] == 'sigmoid':
-                net.add_module(f'Sig{i+1}',nn.Sigmoid())
-            elif args['activation'] == 'tanh':
-                net.add_module(f'tanh{i+1}',nn.Tanh())
-            net.add_module(f'Dropout{i+1}',nn.Dropout(dropout))
-        net.add_module(f'linear{num_layers+1}',nn.Linear(num_input,num_classes,bias=False, dtype=torch.float32))
-
-        def init_weights(m):
-            if type(m) == nn.Linear:
-                nn.init.normal_(m.weight, std=0.01)
-
-        net.apply(init_weights)
-        self.net=net
-
-    def forward(self,X, position_index = False):
-        if position_index == False:
-            return self.net(X) #X: batch_size * seqlength * dim
-        else:
-            return self.net(X+self.position_embedding[:X.shape[1],:])
-
-class RNN(nn.Module):
-    def __init__(self, input_size, output_size, device):
-        super(RNN, self).__init__()
-        hidden_size = input_size
-        self.hidden_size = hidden_size
-        self.rnn = nn.RNN(input_size, hidden_size, num_layers=1, batch_first=True)
-        self.fc = nn.Linear(hidden_size, output_size)
-        self.device = device
-
-    def forward(self, input_vec,position_index=False):
-        batch_size = input_vec.size(0)
-        hidden = self.init_hidden(batch_size)
-        output, hidden = self.rnn(input_vec, hidden) # b*seq*dim; 
-        output = self.fc(output)
-        return output
-
-    def init_hidden(self, batch_size):
-        return torch.zeros(1, batch_size, self.hidden_size).to(self.device)
-
-class Linear(nn.Module):
-    def __init__(self, input_size, output_size, args=None, seqlength=1):
-        super(Linear, self).__init__()
-        if args['pos']:
-            self.linear = nn.Linear(input_size,output_size, bias=False,dtype=torch.float32)
-        else:
-            self.linear = nn.Linear(input_size,output_size, dtype=torch.float32)
-
-    def forward(self, input, position_index = False):
-        return self.linear(input)
-         
-
-class MultiMLP(nn.Module):
-    def __init__(self,num_input,num_classes,position_index=False,num_layers = 2, args=None):
-        super(MultiMLP, self).__init__()
-        seq_len = 4
-        self.mlps = nn.ModuleList([MLP(num_input, num_classes,position_index = False, args = args) for _ in range(seq_len)])
-        self.num_classes = num_classes
-        self.device = torch.device(f'cuda:{args["cuda"]}')
-    def forward(self, x,position_index=False):
-        batch_size, seq_len, dim = x.size()
-        out = torch.zeros(batch_size, seq_len, self.num_classes, device=self.device)
-        for i in range(seq_len):
-            out[:, i, :] = self.mlps[i](x[:, i, :])
-        return out
-
-class BigMLP(nn.Module):
-    def __init__(self,num_input,num_classes,position_index=False,num_layers = 2, args=None):
-        super(BigMLP, self).__init__()
-        seq_len = 4
-        self.mlp = MLP(num_input * seq_len, args['word_embed_size'] * seq_len, position_index = False, args = args)
-        self.seq_len = seq_len
-    def forward(self,x,position_index = False):
-        batch_size, seq_len, dim = x.size()
-        # Reshape input to merge the sequence and feature dimensions
-        x = x.view(batch_size, -1)
-        # Pass through MLP
-        x = self.mlp(x)
-        # Reshape output to split sequence and feature dimensions
-        x = x.view(batch_size, self.seq_len, -1)
-        return x
-
-class Encoding_model(nn.Module):
-    def __init__(self, args,brain_embed_size=None,device=None):
-        super(Encoding_model, self).__init__()
-        if brain_embed_size is None:
-            brain_embed_size = args['brain_embed_size']
-        if args['brain_model'] == 'multi_mlp':
-            self.model = MultiMLP(brain_embed_size,args['word_embed_size'],position_index = False, args = args)
-        elif args['brain_model'] == 'big_mlp':
-            self.model = BigMLP(brain_embed_size,args['word_embed_size'],position_index = False, args = args)
-        elif args['brain_model'] == 'linear':
-            self.model = Linear(brain_embed_size,args['word_embed_size'], args,)
-        elif args['brain_model'] == 'mlp':
-            self.model = MLP(brain_embed_size,args['word_embed_size'],position_index = args['pos'], args = args)
-        elif args['brain_model'] == 'rnn':
-            self.model = RNN(brain_embed_size,args['word_embed_size'], device)
-            
-    def forward(self, x, position_index = False):
-        # x: batch_size * seq_len * dim
-        return self.model(x, position_index = position_index)
 
 class Prompt_model(nn.Module):
     def __init__(self, args, model, tokenizer, device,new_tokens,top_model=None):
@@ -157,6 +31,7 @@ class Prompt_model(nn.Module):
             tmp_weights.append(tmp_weight)
         tmp_weights = torch.stack(tmp_weights,)
         self.token_weights = nn.Parameter(tmp_weights.clone().detach(), requires_grad=True)
+        # self.lm = LanguageModel(self.top_model, decoder_vocab)
     
     def init_encoding_model(self, ):
         self.encoding_model = Encoding_model(self.args, device = self.device)
@@ -224,7 +99,9 @@ class Prompt_model(nn.Module):
                     additional_bs_tokenized[k] = self.words2embedding(content_all)
             else:
                 additional_bs_tokenized = self.words2embedding(content_all)
+        
         if self.args['input_method'] == 'without_brain':
+            # notice this code
             if self.args['model_name'] in ['llama-7b',]:
                 content_all_list = [self.get_prev(additional_bs_tokenized, content_prev_sep)[0]] + [content_all,]
                 content_all_mask = torch.cat([additional_bs_mask[:,:1], content_all_mask], dim=-1)
@@ -276,54 +153,28 @@ class Prompt_model(nn.Module):
             content_prev = torch.cat([content_prev, self.words2embedding(torch.tensor([[target_id]]).to(self.device))], dim=1)
         return total_prob
     
-    def generate_more(self, content_prev, content_prev_mask, additional_bs, additional_bs_mask, content_prev_sep, mode='test',max_new_tokens=32):
-        content_prev, content_prev_mask = self.tokenize(content_prev, content_prev_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False, mode='test')
-        content_prev, content_prev_mask = self.pad2left(content_prev, content_prev_mask)
-        max_new_tokens = max(max_new_tokens, 4)
-        if self.args['generation_method'] == 'greedy':
-            seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=max_new_tokens,return_dict_in_generate=True,num_beams=1,do_sample=False, pad_token_id=self.tokenizer.eos_token_id,num_return_sequences=5,)
-        elif self.args['generation_method'] == 'beam':
-            seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=max_new_tokens,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=2.0,pad_token_id=self.tokenizer.eos_token_id, num_return_sequences=5,) 
-        all_truncated_predictions = []
-        for i in range(len(seq2seqLMoutput['sequences'])):
-            predictions = seq2seqLMoutput['sequences'][i]
-            truncated_prediction = []
-            for t in predictions[1:]:
-                if t != self.tokenizer.eos_token_id:
-                    truncated_prediction.append(t)
-                else:
-                    break
-            all_truncated_predictions.append(truncated_prediction)
-        return all_truncated_predictions
-    
     def generate(self, content_prev, content_prev_mask, additional_bs, additional_bs_mask, content_prev_sep, mode='test'):
         content_prev, content_prev_mask = self.tokenize(content_prev, content_prev_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False, mode='test')
         content_prev, content_prev_mask = self.pad2left(content_prev, content_prev_mask)
-
+        
         if self.args['generation_method'] == 'greedy':
             seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=1,do_sample=False, pad_token_id=self.tokenizer.eos_token_id)
         elif self.args['generation_method'] == 'beam':
-            if self.args['model_name'] == 'huth' and self.args['mode'] != 'evaluate':
-                bos_token_id = self.tokenizer.eos_token_id
+            if self.args['model_name'] == 'huth':
                 # batch_size should be 1 in huth generation
-                if self.args['use_bad_words_ids']:
-                    seq2seqLMoutput = generate_beam(self.model, self.tokenizer, beam_size = 5, embed= content_prev, bad_words_ids=self.bad_words_ids, ) 
-                else:
-                    seq2seqLMoutput = generate_beam(self.model, self.tokenizer, beam_size = 5, embed= content_prev, ) 
+                seq2seqLMoutput = {'sequences':[]}
+                for i in range(content_prev.shape[0]):
+                    seq2seqLMoutput['sequences'].append(generate_beam(self.model, self.tokenizer, beam_size = 5, embed= content_prev[i].unsqueeze(0),))
             else:
-                if self.args['model_name'] == 'huth':
-                    bos_token_id = self.tokenizer.eos_token_id
-                else:
-                    bos_token_id = self.tokenizer.bos_token_id
                 if self.args['use_bad_words_ids']:
-                    seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=self.args['repetition_penalty'], pad_token_id=self.tokenizer.eos_token_id, bad_words_ids=self.bad_words_ids, bos_token_id=bos_token_id) 
+                    seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=self.args['repetition_penalty'], pad_token_id=self.tokenizer.eos_token_id, bad_words_ids=self.bad_words_ids, ) 
                 else:
-                    seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=self.args['repetition_penalty'], pad_token_id=self.tokenizer.eos_token_id, bos_token_id=bos_token_id) 
+                    seq2seqLMoutput = self.model.generate(inputs_embeds = content_prev, attention_mask = content_prev_mask, min_new_tokens = 4, max_new_tokens=32,return_dict_in_generate=True,num_beams=5,do_sample=False, repetition_penalty=self.args['repetition_penalty'], pad_token_id=self.tokenizer.eos_token_id, ) 
 
         all_truncated_predictions = []
         for i in range(len(seq2seqLMoutput['sequences'])):
             predictions = seq2seqLMoutput['sequences'][i]
-            truncated_prediction = []
+            truncated_prediction = [] if predictions[0] == self.tokenizer.eos_token_id else [predictions[0]]
             for t in predictions[1:]:
                 if t != self.tokenizer.eos_token_id:
                     truncated_prediction.append(t)

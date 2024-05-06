@@ -49,6 +49,25 @@ if __name__ == '__main__':
     
     if args['mode'] in ['train','only_train','all']:
         decoding_model.train(dataset.train_dataset, dataset.valid_dataset)
+    
+    if args['mode'] in ['acc','train']:
+        decoding_model.args['load_check_point'] = True
+        decoding_model.load_check_point()
+        decoding_model.prompt_model.check_point = decoding_model.check_point
+        decoding_model.prompt_model.init_encoding_model()
+        
+        loss_list = decoding_model.valid(dataset.test_dataset)
+        args['input_method'] = 'permutated'
+        random.seed(seed)
+        np.random.seed(seed)
+        torch.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
+        dataset = dataset_class(input_dataset, args, tokenizer = decoding_model.tokenizer, decoding_model = decoding_model)
+        lost_list_baseline = decoding_model.valid(dataset.test_dataset)
+        from post_hoc_evaluate import compare
+        pairwise_list = [compare(np.array(loss_list[idx]), np.array(lost_list_baseline[idx])) for idx in range(len(lost_list_baseline))]
+        print(f"pairwise accuracy:  {np.sum(pairwise_list)/len(lost_list_baseline):.4f}",)
+    
     if args['mode'] in ['all','evaluate',]:
         args['mode'] = 'evaluate' if args['mode'] == 'train' else args['mode']
         decoding_model.args['load_check_point'] = True

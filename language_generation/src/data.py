@@ -197,7 +197,7 @@ class FMRI_dataset():
                         if args['data_spliting'] == 'cross_story':
                             trail_id = data_info2random_number[data_info2.index(story)]
                         if args['data_spliting'] == 'end2end':
-                            trail_id = 0.3 if story == 'wheretheressmoke' else 0.6
+                            trail_id = 0.3 if story == 'wheretheressmoke' else 0.7
                         else:
                             trail_id = content_true2idx[content_true]
                         id2info[tmp_id] = {'story':story, 'item_id':item_id, 'k': k}
@@ -205,7 +205,7 @@ class FMRI_dataset():
                         tmp_id += 1
                         if torch.sum(packed_info['content_true_mask']) > 0:
                             self.inputs.append(packed_info)
-                        if self.inputs[-1]['content_prev'].shape[0] == 0 and args['context']:
+                        if torch.sum(self.inputs[-1]['content_prev_mask']).item() == 0 and args['context']:
                             self.inputs = self.inputs[:-1]
         self.pack_data_from_input(args)
         json.dump(id2info, open(self.args['checkpoint_path']+'/'+'id2info.json', 'w'))

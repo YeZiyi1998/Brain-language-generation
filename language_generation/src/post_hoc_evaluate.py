@@ -1,7 +1,8 @@
 import os
 import json
 import nltk
-from nltk.translate.bleu_score import sentence_bleu, corpus_bleu, SmoothingFunction
+from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
+from bleu2 import compute_bleu
 from rouge import Rouge
 import re
 import copy
@@ -115,7 +116,7 @@ def language_evaluate_mask_with_sig(re, mask=None, dataset_name=None):
     for weight in weights_list:
         re['corpus_bleu_score'][len(weight)] = []
         for i in range(len(re['content_pred_tokens'])):
-            re['corpus_bleu_score'][len(weight)].append(corpus_bleu([re['content_true_tokens'][i]], [re['content_pred_tokens'][i]], weights = weight, smoothing_function = chencherry.method1))
+            re['corpus_bleu_score'][len(weight)].append(compute_bleu([re['content_true_tokens'][i]], [re['content_pred_tokens'][i]], max_order = len(weight))[0])
     re['wer'] = []
     for i in range(len(re['content_pred_tokens'])):
         re['wer'].append(wer(re['content_true_tokens'][i][0],re['content_pred_tokens'][i]))
@@ -231,7 +232,7 @@ def is_only_dot_space(text):
         return False
 
 if __name__ == '__main__':
-    result_path = 'Huth_1_gpt2-xl_0503'
+    result_path = 'history_0506//Huth_1_gpt2-xl_0504_no_pretrain'
     
     # comparing BrainLLM and PerBrainLLM
     base_path = '../results/'
