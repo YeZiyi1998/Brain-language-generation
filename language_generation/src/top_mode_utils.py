@@ -1,6 +1,10 @@
 import torch
 import numpy as np
 from torch.nn.functional import softmax
+try:
+    from GPT import GPT
+except:
+    from src.GPT import GPT
 
 class Top_model(GPT):
     def __init__(self, model, tokenizer, device = 'cpu', prompt_model=None):  

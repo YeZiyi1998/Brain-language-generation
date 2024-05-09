@@ -18,7 +18,7 @@ sys.path.append('../../language_generation/')
 from src.settings import model_name2path, model2hidden
 from src.model_utils import Prompt_model
 from src.model import Decoding_model
-from src.GPT import LanguageModel, Top_model
+from src.top_model_utils import LanguageModel, Top_model
 
 class End2End_model(Decoding_model):
     def __init__(self, args):
