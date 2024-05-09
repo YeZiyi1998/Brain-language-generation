@@ -25,7 +25,7 @@ class End2End_model(Decoding_model):
         super().__init__(args)
         self.word_rate_model = joblib.load(f'{args["word_rate_model_path"]}/model.pkl')
         self.args = args
-        with open('../../data_lm/decoder_vocab.json', "r") as f:
+        with open(f'../../data_lm/decoder_vocab.{args["model_name"]}.json', "r") as f:
             decoder_vocab = json.load(f)
         if ('huth' in args['model_name']) is False:
             self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
@@ -110,6 +110,7 @@ class End2End_model(Decoding_model):
             word_rate = int(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
             # word_rate = math.ceil(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
             ncontext = min(5, word_rate)
+            word_rate = min(10, word_rate)
             
             # input construction
             content_prev_sep = content_prev_sep.expand(self.decoder.beam_width, -1,)
@@ -135,14 +136,18 @@ class End2End_model(Decoding_model):
                 decoder.extend(verbose = False)
                 # re['beam_list'].append([item.words[-20:] for item in decoder.beam])                
             
-            re['content_pred'].append([item.words[-word_rate:] for item in decoder.beam])
+            if word_rate > 0:
+                re['content_pred'].append([item.words[-word_rate:] for item in decoder.beam])
+            else:
+                re['content_pred'].append([[] for item in decoder.beam])
             
             if data_id % 20 == 0:
                 re['result'].append(decoder.beam[0].words)
             
-            if data_id == 20:
-                json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.20.json', 'w'))
+            if data_id == 20 or data_id == 100:
+                json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.{data_id}.json', 'w'))
                 print('save results with top 20 steps')
+                exit()
         
         re['result'].append(decoder.beam[0].words)
         

@@ -38,7 +38,7 @@ def get_config():
     parser.add_argument('-checkpoint_path', default = "" ,required=False)
     parser.add_argument('-load_check_point', default = "False" ,required=False)
     parser.add_argument('-enable_grad', default = "False" ,required=False)
-    parser.add_argument('-mode', default = "train" , choices = ['train','evaluate', 'all', 'end2end'],required=False)
+    parser.add_argument('-mode', default = "train" , choices = ['train','evaluate', 'all', 'end2end', 'acc'],required=False)
     parser.add_argument('-additional_loss', default = 0, type = float, required=False)
     parser.add_argument('-fake_input', default = 0, type = float, required=False)
     parser.add_argument('-add_end', default = "False", required=False)

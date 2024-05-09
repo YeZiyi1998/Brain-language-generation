@@ -4,6 +4,7 @@ import numpy as np
 from nltk.translate import meteor_score
 from download_metrics.bleu2 import compute_bleu
 from nltk import word_tokenize
+from bert_score import BERTScorer
 """
 WER
 """
@@ -63,5 +64,18 @@ class BERTSCORE(object):
     def score(self, ref, pred):
         ref_strings = [' '.join(x) for x in ref]
         pred_strings = [' '.join(x) for x in pred]
+        return self.metric.score(cands = pred_strings, refs = ref_strings)[self.score_id].numpy()
+    
+    
+class BERTSCORE(object):
+    def __init__(self, idf_sents=None, rescale = False, score = "recall"):
+        self.metric = BERTScorer(lang = "en", rescale_with_baseline = rescale, idf = (idf_sents is not None), idf_sents = idf_sents)
+        if score == "precision": self.score_id = 0
+        elif score == "recall": self.score_id = 1
+        else: self.score_id = 2
+
+    def score(self, ref, pred):
+        ref_strings = [" ".join(x) for x in ref]
+        pred_strings = [" ".join(x) for x in pred]
         return self.metric.score(cands = pred_strings, refs = ref_strings)[self.score_id].numpy()
     

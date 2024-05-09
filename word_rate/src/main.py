@@ -1,10 +1,6 @@
 from sklearn.linear_model import Ridge, LinearRegression
 import joblib
 import sys
-sys.path.append('../../language_generation/src/')
-from model import Decoding_model 
-from config import get_config
-from data import FMRI_dataset
 import random
 import numpy as np
 import torch
@@ -13,6 +9,10 @@ import os
 import json
 import copy
 from sklearn import svm
+sys.path.append('../../language_generation/')
+from src.model import Decoding_model 
+from src.config import get_config
+from src.data import FMRI_dataset
 seed = 2021
 random.seed(seed)
 np.random.seed(seed)
@@ -67,12 +67,14 @@ if __name__ == '__main__':
     X_train, y_train = dataset2xy(dataset.train_dataset) 
     X_test, y_test = dataset2xy(dataset.test_dataset)
 
-    # 拟合模型
+    # # 拟合模型
     model_ridge.fit(X_train, y_train)
     
-    # 保存模型
+    # # 保存模型
     mode_path = f'{args["checkpoint_path"]}/model.pkl'
     joblib.dump(model_ridge, mode_path)
+    
+    model_ridge = joblib.load(mode_path)
     
     # 使用模型进行预测
     y_predict = model_ridge.predict(X_test)
@@ -90,6 +92,7 @@ if __name__ == '__main__':
                 scores.append(0.5)
             else:
                 scores.append(0)
+    
     result_f = open(f'{args["checkpoint_path"]}/result.txt','w')
     print('mean scores:', np.mean(scores), file=result_f)
     print('mean word rate:', np.mean(y_predict), file=result_f)

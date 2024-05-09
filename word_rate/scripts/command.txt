@@ -1,3 +1,3 @@
 salloc --gpus=1
 python main.py -task_name Pereira_P01 -checkpoint_path Pereira_P01 -wandb none -mode all
-python main.py -task_name Huth_1 -checkpoint_path Huth_1 -wandb none -mode all
+python main.py -task_name Huth_1 -checkpoint_path Huth_1 -wandb none -mode all -data_spliting end2end
