@@ -28,6 +28,7 @@ This is the official repo for our paper [Language Generation from Brain Recordin
 We have provided an example dataset to facilitate the replication of experiments. To run the example dataset, you can go into the sub-directory *language_generation/src* and use the following command:
 
 ```bash
+cd language_generation/src
 # model training and evaluation (runing BrainLLM)
 python main.py -task_name Pereira_example -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path example -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -mode all
 # control evaluation (runing PerBrainLLM)
@@ -45,10 +46,26 @@ sh example.sh
 To run with the datasets utilized in our paper, please download the dataset from [Tsinghua Cloud](https://cloud.tsinghua.edu.cn/d/04e8cfe6c9c743c69f08/) and unzip it. Use the parameter *-dataset_path* to specify the path of your unzip dataset.
 For example, if you unzip the dataset into your home directory as *~/released/*, then you can run the training and evaluation of BrainLLM and the participant 1 in Huth dataset using the following command:
 ```bash
-python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path Huth_1 -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -mode all -dataset_path ~/released/Huth/ -pos True
+python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path Huth_1 -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -mode all -dataset_path ../../dataset/ -pos True
 ``` 
 
 To evaluate the model performance, you can refer to the code in *language_generation/src/post_hoc_evaluate.py*
+
+## Full story construction
+
+In addition to the language completion task, our method also supports generating a complete piece of text based on brain signals spanning a few minutes. The relevant code can be found in the directory of *end2end_generation/*.
+Here is a example that generate the human semantics while they are perceiving story of "where there's smoke":
+
+```bash
+cd language_generation/src
+# train BrainLLM with the spliting strategy that left out the story of "where there's smoke"
+python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path Huth_1 -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -mode all -dataset_path ../../dataset/ -pos True -data_spliting end2end
+cd ../end2end_generation/src
+# run inference for full story construction
+python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path Huth_1 -wandb none -mode evaluate -pos True -data_spliting end2end -mode end2end 
+# run evaluation with Huth's metrics
+python evaluate.py -dir Huth_1
+``` 
 
 ### Installation
 
@@ -145,7 +162,7 @@ This is the overall experimental results in terms of language similarity metrics
 If you find our work helpful, please consider citing us:
 ```
 @article{ye2023language,
-  title={Language Generation from Human Brain Activities},
+  title={Language Generation from Brain Recordings},
   author={Ye, Ziyi and Ai, Qingyao and Liu, Yiqun and Zhang, Min and Lioma, Christina and Ruotsalo, Tuukka},
   journal={arXiv preprint arXiv:2311.09889},
   year={2023}
