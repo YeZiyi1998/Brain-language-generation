@@ -37,7 +37,7 @@ class GPT_Tokenizer():
         attention_mask = torch.tensor([attention_mask])
         return {'input_ids': input_ids, 'attention_mask': attention_mask}
 
-    def encode(self, word):
+    def encode(self, word, add_special_tokens=None):
         return [self.word2id[item] for item in word]
 
     def add_tokens(self, new_tokens):
@@ -91,30 +91,3 @@ class GPT():
         """
         return [self.word2id[x] if x in self.word2id else self.UNK_ID for x in words]
         
-    def get_story_array(self, words, context_words):
-        """get word ids for each phrase in a stimulus story
-        """
-        nctx = context_words + 1
-        story_ids = self.encode(words)
-        story_array = np.zeros([len(story_ids), nctx]) + self.UNK_ID
-        for i in range(len(story_array)):
-            segment = story_ids[i:i+nctx]
-            story_array[i, :len(segment)] = segment
-        return torch.tensor(story_array).long()
-
-    def get_context_array(self, contexts):
-        """get word ids for each context
-        """
-        context_array = np.array([self.encode(words) for words in contexts])
-        return torch.tensor(context_array).long()
-
-    def get_hidden(self, ids, layer):
-        """get hidden layer representations
-        """
-        mask = torch.ones(ids.shape).int()
-        with torch.no_grad():
-            outputs = self.model(input_ids = ids.to(self.device), 
-                                attention_mask = mask.to(self.device), output_hidden_states = True)
-        return outputs.hidden_states[layer].detach().cpu().numpy()
-
-    

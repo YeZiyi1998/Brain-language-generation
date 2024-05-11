@@ -33,7 +33,7 @@ if __name__ == '__main__':
     dataset_path = args['dataset_path']
     # setup model path
     args['llm_model_path'] = '../../language_generation/' + '/'.join(args['checkpoint_path'].split('/')[1:])
-    args['word_rate_model_path'] = f'../../word_rate/results/{args["task_name"]}_{args["model_name"]}' 
+    args['word_rate_model_path'] = f'../../word_rate/results/{args["task_name"]}_{args["model_name"]}' # only use huth model for word rate
     
     if 'Huth' in args['task_name']:
         input_dataset = pickle.load(open(f'{dataset_path}/{subject_name}.wq.pkl','rb'))

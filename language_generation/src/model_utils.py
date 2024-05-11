@@ -2,11 +2,11 @@ import torch
 import torch.nn as nn
 import random
 try:
-    from GPT import generate_beam
+    from top_model_utils import generate_beam
     from sub_models import Encoding_model 
 except Exception as e:
     # print(e)
-    from src.GPT import generate_beam
+    from src.top_model_utils import generate_beam
     from src.sub_models import Encoding_model 
 
 

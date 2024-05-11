@@ -2,7 +2,7 @@ import os
 import json
 import nltk
 from nltk.translate.bleu_score import sentence_bleu, SmoothingFunction
-from bleu2 import compute_bleu
+from modules.bleu2 import compute_bleu
 from rouge import Rouge
 import re
 import copy
@@ -60,7 +60,7 @@ def normalize_text(text_from_tokens):
 
 def detokenize(tokens):
     text_from_tokens = ' '.join([item.strip() for item in tokens if len(item.strip()) > 0])
-    text_from_tokens = text_from_tokens.replace("  ", " ").replace(" ,", ",").replace(" .", ".").replace(" '", "'").replace(" ?", "?").replace(" !", "!").replace(" :", ":").replace(" ;", ";").replace(" %", "%")
+    text_from_tokens = text_from_tokens.replace("<s>", "").replace("  ", " ").replace(" ,", ",").replace(" .", ".").replace(" '", "'").replace(" ?", "?").replace(" !", "!").replace(" :", ":").replace(" ;", ";").replace(" %", "%")
     return text_from_tokens
 
 def preprocess_re(re, mask=None,dataset_name=None):
@@ -68,6 +68,7 @@ def preprocess_re(re, mask=None,dataset_name=None):
         return re
     for i in range(len(re['content_true'])):
         re['content_true'][i] = re['content_true'][i].replace('<|endoftext|>','').replace('??','').replace('⁇','').replace('</s>','').replace('<unk>','')
+        re['content_pred'][i] = re['content_pred'][i].replace('<|endoftext|>','').replace('??','').replace('⁇','').replace('</s>','').replace('<unk>','').replace('<s>','')
     re['content_pred_tokens'] = []
     re['content_true_tokens'] = []
 
@@ -233,31 +234,33 @@ def is_only_dot_space(text):
 
 if __name__ == '__main__':
     result_path = 'history_0506//Huth_1_gpt2-xl_0504_no_pretrain'
+    result_path = 'Huth_1_gpt2-xl_ds'
+    result_path = 'Huth_1_llama-7b_pre0'
     
     # comparing BrainLLM and PerBrainLLM
     base_path = '../results/'
     model_dir_list = [{'path_name':base_path + result_path, 'file_name':'test.json'}]
     control_dir_list = [{'path_name':base_path + result_path, 'file_name':'test_permutated.json'}]
-    model_result = get_iterate_results(model_dir_list)
-    control_result = get_iterate_results(control_dir_list)
-    if len(model_result['content_prev']) < len(control_result['content_prev']):
-        if len(model_result['content_prev']) * 10 == len(control_result['content_prev']):
-            model_result = multi_add(model_result)
-        else:
-            print("Error: length of data samples in the proposed model and the control model doesn't not match")
+    model_result = get_iterate_results(model_dir_list, print_log=True)
+    # control_result = get_iterate_results(control_dir_list)
+    # if len(model_result['content_prev']) < len(control_result['content_prev']):
+    #     if len(model_result['content_prev']) * 10 == len(control_result['content_prev']):
+    #         model_result = multi_add(model_result)
+    #     else:
+    #         print("Error: length of data samples in the proposed model and the control model doesn't not match")
     
-    show_significance(model_result, control_result)
+    # show_significance(model_result, control_result)
     
-    # comparing BrainLLM and StdLLM
-    base_path = '../results/'
-    model_dir_list = [{'path_name':base_path + result_path, 'file_name':'test.json'}]
-    control_dir_list = [{'path_name':base_path + result_path, 'file_name':'test_nobrain.json'}]
-    model_result = get_iterate_results(model_dir_list)
-    control_result = get_iterate_results(control_dir_list)
-    if len(model_result['content_prev']) < len(control_result['content_prev']):
-        if len(model_result['content_prev']) * 10 == len(control_result['content_prev']):
-            model_result = multi_add(model_result)
-        else:
-            print("Error: length of data samples in the proposed model and the control model doesn't not match")
+    # # comparing BrainLLM and StdLLM
+    # base_path = '../results/'
+    # model_dir_list = [{'path_name':base_path + result_path, 'file_name':'test.json'}]
+    # control_dir_list = [{'path_name':base_path + result_path, 'file_name':'test_nobrain.json'}]
+    # model_result = get_iterate_results(model_dir_list)
+    # control_result = get_iterate_results(control_dir_list)
+    # if len(model_result['content_prev']) < len(control_result['content_prev']):
+    #     if len(model_result['content_prev']) * 10 == len(control_result['content_prev']):
+    #         model_result = multi_add(model_result)
+    #     else:
+    #         print("Error: length of data samples in the proposed model and the control model doesn't not match")
     
-    show_significance(model_result, control_result)
+    # show_significance(model_result, control_result)

@@ -70,9 +70,10 @@ class FMRI_dataset():
         return input_dataset
     
     def pack_info(self, content_prev, additional_bs, content_true, trail_id,id):
-        content_all = self.tokenizer.encode_plus(content_prev+' '+content_true, max_length=self.args['prev_mask_len'] + self.args['max_generate_len'], truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length')
-        content_true = self.tokenizer.encode_plus(' '+content_true, max_length=self.args['max_generate_len'], add_special_tokens = self.add_special_tokens, truncation=True, return_tensors='pt',padding='max_length')
-        content_prev = self.tokenizer.encode_plus(content_prev, max_length=self.args['prev_mask_len'], truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length')
+        content_all = self.tokenizer.encode_plus(content_prev.strip()+' '+content_true, max_length=self.args['prev_mask_len'] + self.args['max_generate_len'], truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length')
+        content_true = self.tokenizer.encode_plus(content_true if self.args['model_name'] in ['llama-7b',] else ' '+content_true, max_length=self.args['max_generate_len'], add_special_tokens = self.add_special_tokens, truncation=True, return_tensors='pt',padding='max_length')
+        content_prev = self.tokenizer.encode_plus(content_prev.strip(), max_length=self.args['prev_mask_len'], truncation=True, return_tensors='pt', add_special_tokens = self.add_special_tokens, padding='max_length')
+        
         return {
                 'content_prev': content_prev['input_ids'][0], 
                 'content_prev_mask': content_prev['attention_mask'][0], 

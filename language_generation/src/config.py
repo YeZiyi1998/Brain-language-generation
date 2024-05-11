@@ -71,6 +71,9 @@ def get_config():
     parser.add_argument('-early_stop', default = 10, type=int,required=False)
     parser.add_argument('-use_bad_words_ids', default = 'False', type=str,required=False)
     parser.add_argument('-repetition_penalty', default = 2.0, type=float, required=False)    
+    parser.add_argument('-ncontext', default = 10, type=int, required=False) 
+    parser.add_argument('-gcontext', default = 30, type=int, required=False) 
+    parser.add_argument('-use_decoder_vocab', default = 'True', type=str, required=False) 
     args = vars(parser.parse_args())
     args['fmri_pca'] = args['fmri_pca'] == 'True'
     args['load_check_point'] = args['load_check_point'] == 'True'
@@ -81,6 +84,7 @@ def get_config():
     args['normalized'] = args['normalized'] == 'True'
     args['evaluate_log'] = args['evaluate_log'] == 'True'
     args['use_bad_words_ids'] = args['use_bad_words_ids'] == 'True'
+    args['use_decoder_vocab'] = args['use_decoder_vocab'] == 'True'
     args['roi_selected'] = json.loads(args['roi_selected'])
     tmp_dataset2args = dataset2args[args['task_name'].split('_')[0]]
     for k, v in tmp_dataset2args.items():

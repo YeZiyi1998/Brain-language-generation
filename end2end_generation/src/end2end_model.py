@@ -13,73 +13,47 @@ import joblib
 import sys
 import math
 import sklearn
+import numpy as np
 from Decoder import Decoder, LMFeatures, Hypothesis
 sys.path.append('../../language_generation/')
 from src.settings import model_name2path, model2hidden
 from src.model_utils import Prompt_model
 from src.model import Decoding_model
-from src.top_model_utils import LanguageModel, Top_model
+from src.top_model_utils import LanguageModel, Top_model, TokenLanguageModel
+
+def convert_int64_to_int(data):
+    if isinstance(data, dict):
+        return {k: convert_int64_to_int(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [convert_int64_to_int(v) for v in data]
+    elif isinstance(data, np.int64):
+        return int(data)
+    else:
+        return data
 
 class End2End_model(Decoding_model):
     def __init__(self, args):
         super().__init__(args)
         self.word_rate_model = joblib.load(f'{args["word_rate_model_path"]}/model.pkl')
         self.args = args
-        with open(f'../../data_lm/decoder_vocab.{args["model_name"]}.json', "r") as f:
-            decoder_vocab = json.load(f)
+        if self.args['use_decoder_vocab'] == False:
+            decoder_vocab = None
+        else:
+            decoder_vocab = json.load(open(f'../../data_lm/decoder_vocab.{args["model_name"]}.json', "r"))
         if ('huth' in args['model_name']) is False:
             self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
         self.top_model.prompt_model = self.prompt_model
         self.decoder = Decoder()
-        self.lm = LanguageModel(self.top_model, decoder_vocab)
+        if self.args['model_name'] == 'llama-7b' or 'gpt' in self.args['model_name']:
+            self.lm = TokenLanguageModel(self.top_model, decoder_vocab, model_name=self.args['model_name'],  )
+        else:
+            self.lm = LanguageModel(self.top_model, decoder_vocab)
         
     # 可行方法
     # (1）brain + text prompt (截断) -> continuation
     # (2) text prompt (截断) + brain + text prompt(截断) -> continuation
     # (3) [brain + text prompt(截断)] +概率合并+ [text prompt] -> continuation
     # (4) text prompt (brain fusion) -> continuation (暂不考虑)
-    
-    def test(self, test_dataset, file_name=None):
-        test_dataloader = DataLoader(test_dataset, batch_size = 1, shuffle=False, num_workers=1)
-        re = {'valid_loss':[], 'content_pred':[], 'content_true':[], 'content_prev':[],'content_pred_token_ids':[],'data_id':[]}
-        self.prompt_model.eval()
-        if self.args['generation_method'] == 'greedy':
-            file_name += '_' + self.args['generation_method']
-        
-        existing_tokens = self.tokenizer.encode('i')
-        
-        for content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(test_dataloader, mininterval=300):
-            # estimate word rate
-            word_rate = math.ceil(self.word_rate_model.predict([additional_bs.numpy().flatten()])) + 1
-
-            # input construction
-            content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, additional_bs_mask = self.put_data_into_cuda(content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask)
-            content_all, content_all_mask = content_all.to(self.device), content_all_mask.to(self.device)
-            existing_tokens_tensor = torch.tensor(existing_tokens[-self.args['prev_mask_len']:], dtype=torch.long)
-            
-            if len(existing_tokens) > 0:
-                content_prev_mask = content_prev_mask.zero_()
-                content_prev_mask[0][:len(existing_tokens)] = 1
-                content_prev[0][:len(existing_tokens_tensor)] = existing_tokens_tensor
-            
-            # generate
-            all_predicted_tokens = self.prompt_model.generate(content_prev, content_prev_mask, additional_bs, additional_bs_mask, content_prev_sep, mode='test')
-            all_predicted_tokens[0] = all_predicted_tokens[0][:word_rate]
-            existing_tokens += [item.detach().cpu().numpy().tolist() for item in all_predicted_tokens[0]]
-            data_id = data_id.numpy().tolist()
-            re['content_true'].append(self.tokenizer.convert_tokens_to_string(self.tokenizer.convert_ids_to_tokens(content_true[0])).replace('<|endoftext|>','').replace('⁇','').replace('</s>','').replace('<unk>','').strip())
-            predicted_tokens = all_predicted_tokens[0]
-            content_pred_tokens = self.tokenizer.convert_ids_to_tokens(predicted_tokens)
-            re['content_pred_token_ids'].append([item.detach().cpu().numpy().tolist() for item in predicted_tokens])
-            re['content_pred'].append(self.tokenizer.convert_tokens_to_string(content_pred_tokens))
-            re['content_prev'].append(self.tokenizer.convert_tokens_to_string(self.tokenizer.convert_ids_to_tokens(content_prev[0])).replace('<|endoftext|>','').replace('⁇','').replace('</s>','').replace('<unk>','').strip())
-            re['data_id'].append(data_id[0])
-            
-            if data_id[0] == 20:
-                json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.20.json', 'w'))
-
-        if file_name is not None:
-            json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.json', 'w'))
 
     def put_bs_into_cuda(self, additional_bs):
         additional_bs = additional_bs.expand(self.decoder.beam_width, -1, -1)
@@ -96,21 +70,41 @@ class End2End_model(Decoding_model):
             additional_bs = additional_bs.half()
         return additional_bs, additional_bs_mask
 
+    def generate(self, word_rate, decoder, ncontext, additional_bs, additional_bs_mask, content_prev_sep):
+        for i in range(word_rate):
+            if self.args['input_method'] == 'without_brain':
+                beam_nucs = self.lm.beam_propose(decoder.beam, ncontext, gcontext=self.args['gcontext'])
+            else:
+                beam_nucs = self.lm.beam_propose(decoder.beam, ncontext, gcontext=self.args['gcontext'], additional_bs=additional_bs, additional_bs_mask=additional_bs_mask, content_prev_sep=content_prev_sep)
+            for c, (hyp, nextensions) in enumerate(decoder.get_hypotheses()): # 对于所有可能的生成的词
+                nuc, logprobs = beam_nucs[c]
+                if len(nuc) < 1: continue
+                extend_words = [hyp.words + [x] for x in nuc] # n_candidates 计算生成这些词之后的情况 如 [i was at a]
+                # trs [1 2 3 4 5 6]; 
+                local_extensions = [Hypothesis(parent = hyp, extension = x) for x in zip(nuc, logprobs, [None for _ in range(len(logprobs))])] # 所有可能的extensions
+                likelihoods = logprobs
+                decoder.add_extensions(local_extensions, likelihoods, nextensions) # 基于bayes来生成下一个词接到后面
+            decoder.extend(verbose = False)
+
     def test_beam(self, test_dataset, file_name=None):
         test_dataloader = DataLoader(test_dataset, batch_size = 1, shuffle=False, num_workers=1)
         self.prompt_model.eval()
         
-        re = {'beam_list':[], 'result':[],'data_id':[], 'content_true':[], 'content_pred':[]}
+        re = {'beam_list':[], 'result':[],'data_id':[], 'content_true':[], 'content_pred':[], 'word_rate':[], 'result_ids':[], 'word_rate_float':[], 'content_pred_ids':[]}
         decoder = self.decoder
         
         print('startting end to end generation:')
         
         for content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(test_dataloader, mininterval=300):
             # estimate word rate
-            word_rate = int(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
+            word_rate_float = float(self.word_rate_model.predict([additional_bs.numpy().flatten()])[0])
+            word_rate = int(word_rate_float-0.5)
+            word_rate = max(word_rate, 0)
+            
             # word_rate = math.ceil(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
-            ncontext = min(5, word_rate)
-            word_rate = min(10, word_rate)
+            # ncontext = min(5, word_rate)
+            ncontext = self.args['ncontext']
+            # word_rate = min(10, word_rate)
             
             # input construction
             content_prev_sep = content_prev_sep.expand(self.decoder.beam_width, -1,)
@@ -118,38 +112,35 @@ class End2End_model(Decoding_model):
             content_prev_sep = content_prev_sep.to(self.device)
             data_id = data_id.numpy().tolist()[0]
             re['data_id'].append(data_id)
-            re['content_true'].append(self.tokenizer.convert_tokens_to_string(self.tokenizer.convert_ids_to_tokens(content_true[0])).replace('<|endoftext|>','').replace('⁇','').replace('</s>','').replace('<unk>','').strip())
-            
-            for i in range(word_rate):
-                if self.args['input_method'] == 'without_brain':
-                    beam_nucs = self.lm.beam_propose(decoder.beam, ncontext, )
-                else:
-                    beam_nucs = self.lm.beam_propose(decoder.beam, ncontext, additional_bs=additional_bs, additional_bs_mask=additional_bs_mask, content_prev_sep=content_prev_sep)
-                for c, (hyp, nextensions) in enumerate(decoder.get_hypotheses()): # 对于所有可能的生成的词
-                    nuc, logprobs = beam_nucs[c]
-                    if len(nuc) < 1: continue
-                    extend_words = [hyp.words + [x] for x in nuc] # n_candidates 计算生成这些词之后的情况 如 [i was at a]
-                    # trs [1 2 3 4 5 6]; 
-                    local_extensions = [Hypothesis(parent = hyp, extension = x) for x in zip(nuc, logprobs, [None for _ in range(len(logprobs))])] # 所有可能的extensions
-                    likelihoods = logprobs
-                    decoder.add_extensions(local_extensions, likelihoods, nextensions) # 基于bayes来生成下一个词接到后面
-                decoder.extend(verbose = False)
-                # re['beam_list'].append([item.words[-20:] for item in decoder.beam])                
+            if len(content_true[0]) > 0:
+                re['content_true'].append(self.tokenizer.convert_tokens_to_string(self.tokenizer.convert_ids_to_tokens(content_true[0])).replace('<|endoftext|>','').replace('⁇','').replace('</s>','').replace('<unk>','').strip())
+            else:
+                re['content_true'].append('')
+            self.generate(word_rate, decoder, ncontext, additional_bs, additional_bs_mask, content_prev_sep)
             
             if word_rate > 0:
-                re['content_pred'].append([item.words[-word_rate:] for item in decoder.beam])
+                re['content_pred'].append([item.words[-word_rate:] for item in decoder.beam] if self.args['model_name'] == 'huth' else [self.tokenizer.decode(item.words[-word_rate:]) for item in decoder.beam])
+                re['content_pred_ids'].append([item.words[-word_rate:] for item in decoder.beam])
             else:
                 re['content_pred'].append([[] for item in decoder.beam])
+                re['content_pred_ids'].append([item.words[-word_rate:]  for item in decoder.beam])
             
             if data_id % 20 == 0:
-                re['result'].append(decoder.beam[0].words)
+                re['result'].append(self.tokenizer.decode(decoder.beam[0].words))
             
-            if data_id == 20 or data_id == 100:
+            re['word_rate'].append(word_rate)
+            re['word_rate_float'].append(word_rate_float)
+            
+            if data_id == 20 or data_id == 100 or data_id == 5:
+                re['result_ids'].append(decoder.beam[0].words)
+                re = convert_int64_to_int(re)
                 json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.{data_id}.json', 'w'))
-                print('save results with top 20 steps')
-                exit()
+                print(f'save results with top {data_id} steps')
+            
         
-        re['result'].append(decoder.beam[0].words)
+        re['result'].append(self.tokenizer.decode(decoder.beam[0].words))
+        re['result_ids'].append(decoder.beam[0].words )
         
         if file_name is not None:
+            re = convert_int64_to_int(re)
             json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.json', 'w'))

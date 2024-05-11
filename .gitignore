@@ -19,3 +19,4 @@ data_lm/
 end2end_generation/results/*
 word_rate/results/*
 trash/
+language_generation/src/modules/config.py

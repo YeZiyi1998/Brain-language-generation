@@ -3,10 +3,14 @@ import numpy as np
 from torch.nn.functional import softmax
 try:
     from GPT import GPT
+    from modules.config import INIT, STOPWORDS, INIT_ids, STOPWORDS_ids
 except:
     from src.GPT import GPT
+    from src.modules.config import INIT, STOPWORDS, INIT_ids, STOPWORDS_ids
+from nltk.stem.snowball import SnowballStemmer
+stemmer = SnowballStemmer("english")
 
-class Top_model(GPT):
+class Top_model():
     def __init__(self, model, tokenizer, device = 'cpu', prompt_model=None):  
         self.device = device
         self.model = model
@@ -18,7 +22,7 @@ class Top_model(GPT):
     def encode(self, words):
         """map from words to ids
         """
-        return self.tokenizer.encode(words)
+        return self.tokenizer.encode(words, add_special_tokens=False)
     
     def get_probs(self, ids):
         """get next word probability distributions
@@ -31,24 +35,24 @@ class Top_model(GPT):
     
     def get_probs_generation(self, content_all, additional_bs, additional_bs_mask, content_prev_sep):
         # 所有模型至少能接受长度为512的输入，先进行截断
-        content_all = content_all[:,-500:] # beam_size * seq_length * embed_size
+        content_all = content_all[:,-500:] # beam_size * seq_length
         content_all_mask = torch.ones(content_all.shape).int().to(self.device)
         content_all = content_all.to(self.device)
 
-        content_all, content_all_mask = self.prompt_model.tokenize(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, mode='test')
-        
+        content_all2, content_all_mask2 = self.prompt_model.tokenize(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False, mode='test')
+
         with torch.no_grad():
-            output = self.model(inputs_embeds=content_all, attention_mask = content_all_mask) 
+            output = self.model(inputs_embeds=content_all2, attention_mask = content_all_mask2) 
         
         probs = softmax(output.logits, dim = 2).detach().cpu().numpy()
     
         return probs
-
-from nltk.stem.snowball import SnowballStemmer
-stemmer = SnowballStemmer("english")
-
-INIT = ['i', 'we', 'she', 'he', 'they', 'it']
-STOPWORDS = {'is', 'does', 's', 'having', 'doing', 'these', 'shan', 'yourself', 'other', 'are', 'hasn', 'at', 'for', 'while', 'down', "hadn't", 'until', 'above', 'during', 'each', 'now', 'have', "won't", 'once', 'why', 'here', 'ourselves', 'to', 'over', 'into', 'who', 'that', 'myself', 'he', 'themselves', 'were', 'against', 'about', 'some', 'has', 'but', 'ma', 'their', 'this', 'there', 'with', "that'll", "shan't", "wouldn't", 'a', 'those', "you'll", 'll', 'few', 'couldn', 'an', 'd', "weren't", 'doesn', 'own', 'won', 'didn', 'what', 'when', 'in', 'below', 'where', "it's", 'most', 'just', "you're", 'yourselves', 'too', "don't", "she's", "didn't", "hasn't", 'isn', "mustn't", 'of', 'did', 'how', 'himself', 'aren', 'if', 'very', 'or', 'weren', 'it', 'be', 'itself', "doesn't", 'my', 'o', 'no', "isn't", 'before', 'after', 'off', 'was', 'can', 'the', 'been', 'her', 'him', "wasn't", 've', 'through', "needn't", 'because', 'nor', 'will', 'm', 't', 'out', 'on', 'she', 'all', 'then', 'than', "mightn't", 'hers', 'herself', 'only', 'should', 're', 'ain', 'wasn', "aren't", "couldn't", 'they', 'hadn', 'had', 'more', 'and', 'under', "shouldn't", 'any', 'y', 'don', 'from', 'so', 'whom', 'as', 'mustn', 'between', 'up', 'do', 'both', 'such', 'our', 'its', 'which', 'not', "haven't", 'needn', 'by', "should've", 'again', 'shouldn', 'his', 'me', 'further', 'yours', 'am', 'your', 'haven', 'wouldn', 'being', 'ours', 'you', 'i', 'theirs', 'mightn', 'same', 'we', "you've", 'them', "you'd"}
+    
+    def get_context_array(self, contexts):
+        """get word ids for each context
+        """
+        context_array = np.array([self.encode(words) for words in contexts])
+        return torch.tensor(context_array).long()
 
 def get_nucleus(probs, nuc_mass, nuc_ratio):
     """identify words that constitute a given fraction of the probability mass
@@ -111,6 +115,75 @@ class LanguageModel():
                 nuc_words = context_filter(nuc_words, context)
                 nuc_logprobs = np.log([probs[self.model.word2id[w]] for w in nuc_words])
                 beam_nucs.append((nuc_words, nuc_logprobs))
+            return beam_nucs
+
+class TokenLanguageModel(LanguageModel):
+    """class for generating word sequences using a language model
+    """
+    def __init__(self, model, vocab, nuc_mass = 1.0, nuc_ratio = 0.0, model_name=''):
+        if vocab is None:
+            vocab = {}  
+        super().__init__(model, vocab, )      
+        self.ids = set([item for word in vocab for item in self.model.encode(word)])
+        self.model_name = model_name
+        self.stop_word_ids = set([item for item_list in STOPWORDS_ids[self.model_name] for item in item_list])        
+
+    def ps(self, contexts,additional_bs=None,additional_bs_mask=None, content_prev_sep=None):
+        """get probability distributions over the next words for each context
+        """
+        context_arr = torch.tensor(contexts)
+        if additional_bs is None:
+            probs = self.model.get_probs(context_arr)
+        else:
+            probs = self.model.get_probs_generation(context_arr, additional_bs=additional_bs, content_prev_sep=content_prev_sep, additional_bs_mask=additional_bs_mask)
+        return probs[:, -1] 
+
+    # def context_filter(self, proposals, context, ):
+    #     """filter out words that occur in a context to prevent repetitions
+    #     """
+    #     cut_words = []
+    #     cut_words.extend([context[i+1] for i, word in enumerate(context[:-1]) if word == context[-1]]) # bigrams
+    #     context2 = self.model.tokenizer.decode(context)
+    #     proposals2 = [self.model.tokenizer.decode([item]) for item in proposals]
+    #     proposals3 = [self.model.tokenizer.decode([context[-1], item]) for item in proposals]
+    #     cut_words.extend([x for i, x in enumerate(proposals) if x not in self.stop_word_ids and (proposals2[i] in context or proposals3[i] in context2)]) # unigrams
+    #     if len(context) > 5:
+    #         # jiayudebug snippet
+    #         inputs = ''
+    #         while inputs != 'continue':
+    #             try:
+    #                 print(eval(inputs))
+    #             except Exception as e:
+    #                 print('error:', e)
+    #                 pass
+    #             inputs = input()
+    #     return [x for x in proposals if x not in cut_words]
+    
+    def context_filter(self, proposals, context, ):
+        """filter out words that occur in a context to prevent repetitions
+        """
+        cut_words = []
+        cut_words.extend([context[i+1] for i, word in enumerate(context[:-1]) if word == context[-1]]) # bigrams
+        cut_words.extend([x for i, x in enumerate(proposals) if x not in self.stop_word_ids and x in context]) # unigrams
+        return [x for x in proposals if x not in cut_words]
+
+    def beam_propose(self, beam, context_words, gcontext, additional_bs=None,additional_bs_mask=None,content_prev_sep=None):
+        """get possible extension words for each hypothesis in the decoder beam
+        """
+        if len(beam) == 1: 
+            nuc_words = [w_id for w_id in INIT_ids[self.model_name]]
+            nuc_logprobs = np.log(np.ones(len(nuc_words)) / len(nuc_words))
+            return [(nuc_words, nuc_logprobs)]
+        else:
+            contexts = [hyp.words[-gcontext:] for hyp in beam]
+            beam_probs = self.ps(contexts, additional_bs=additional_bs,additional_bs_mask=additional_bs_mask,content_prev_sep=content_prev_sep)
+            beam_nucs = []
+            for context, probs in zip(contexts, beam_probs):
+                nuc_ids = get_nucleus(probs, nuc_mass = self.nuc_mass, nuc_ratio = self.nuc_ratio)
+                nuc_ids = [nuc_id for nuc_id in nuc_ids if nuc_id in self.ids] if len(self.ids) > 0 else nuc_ids
+                nuc_ids = self.context_filter(nuc_ids, context[-context_words:])
+                nuc_logprobs = np.log([probs[nuc_id] for nuc_id in nuc_ids])
+                beam_nucs.append((nuc_ids, nuc_logprobs))
             return beam_nucs
 
 # 淘汰掉的用法？
