@@ -51,9 +51,9 @@ class Decoding_model:
         elif 'huth' in args['model_name']:
             vocab = json.load(open('/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/vocab.json'))
             path = "/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/model"
-            self.top_model = GPT(vocab=vocab, path=path, device=self.device,)
-            self.model = self.top_model.model
-            self.tokenizer = GPT_Tokenizer(gpt=self.top_model)      
+            self.GPT = GPT(vocab=vocab, path=path, device=self.device,)
+            self.model = self.GPT.model
+            self.tokenizer = GPT_Tokenizer(gpt=self.GPT)      
         elif 'gpt' in args['model_name']:
             if args['model_name'] in model_name2path.keys():
                 self.tokenizer = GPT2Tokenizer.from_pretrained(model_name2path[args['model_name']])
@@ -94,7 +94,7 @@ class Decoding_model:
                 elif 'huth' in self.args['model_name']:
                     self.model.transformer.tokens_embed.weight[new_token_id].requires_grad = True
         self.model = self.model.to(self.device)
-        self.prompt_model = Prompt_model(args, self.model, self.tokenizer, self.device, self.new_tokens, top_model= self.top_model if 'huth' in self.args['model_name'] else None)
+        self.prompt_model = Prompt_model(args, self.model, self.tokenizer, self.device, self.new_tokens,)
         self.max_norm = 0.1 if args['model_name'] in ['llama-7b','llama-7b-old'] else 10
         
         if args['load_check_point']:
@@ -109,7 +109,6 @@ class Decoding_model:
     def get_model_dict(self,):
         re = {'new_tokens':[]}
         for new_token in self.new_tokens:
-            # new_token_id = self.tokenizer.convert_tokens_to_ids(f"{new_token}")
             re['new_tokens'] = self.prompt_model.token_weights.detach()
         
         if self.args['enable_grad']:
@@ -180,7 +179,7 @@ class Decoding_model:
         re = torch.load(path, map_location=torch.device('cpu'))
         if self.args['enable_grad']:
             self.model.load_state_dict(re['total_model'])
-        self.prompt_model.token_weights.data = re['new_tokens'].detach()        
+        self.prompt_model.token_weights.data = re['new_tokens'].detach().to(self.device)        
         self.check_point = re
         self.prompt_model.check_point = re
         self.prompt_model.init_encoding_model()
@@ -391,6 +390,7 @@ class Decoding_model:
                     total_additional_loss += additional_loss.item()
                 optimizer.zero_grad()
                 loss.backward()
+
                 torch.nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, parameters), max_norm=10.0)
                 optimizer.step()
                 total_loss += loss.item()

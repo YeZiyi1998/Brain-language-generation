@@ -34,7 +34,6 @@ class Top_model():
         return probs
     
     def get_probs_generation(self, content_all, additional_bs, additional_bs_mask, content_prev_sep):
-        # 所有模型至少能接受长度为512的输入，先进行截断
         content_all = content_all[:,-500:] # beam_size * seq_length
         content_all_mask = torch.ones(content_all.shape).int().to(self.device)
         content_all = content_all.to(self.device)
@@ -98,7 +97,7 @@ class LanguageModel():
             probs = self.model.get_probs_generation(context_arr, additional_bs=additional_bs, content_prev_sep=content_prev_sep, additional_bs_mask=additional_bs_mask)
         return probs[:, - 1] 
     
-    def beam_propose(self, beam, context_words, additional_bs=None,additional_bs_mask=None,content_prev_sep=None):
+    def beam_propose(self, beam, context_words, gcontext=None, additional_bs=None,additional_bs_mask=None,content_prev_sep=None):
         """get possible extension words for each hypothesis in the decoder beam
         """
         if len(beam) == 1: 

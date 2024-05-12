@@ -11,9 +11,8 @@ except Exception as e:
 
 
 class Prompt_model(nn.Module):
-    def __init__(self, args, model, tokenizer, device,new_tokens,top_model=None):
+    def __init__(self, args, model, tokenizer, device,new_tokens,):
         super(Prompt_model, self).__init__()
-        self.top_model = top_model
         self.model = model
         self.args = args
         self.device = device
@@ -31,9 +30,8 @@ class Prompt_model(nn.Module):
             tmp_weights.append(tmp_weight)
         tmp_weights = torch.stack(tmp_weights,)
         self.token_weights = nn.Parameter(tmp_weights.clone().detach(), requires_grad=True)
-        # self.lm = LanguageModel(self.top_model, decoder_vocab)
     
-    def init_encoding_model(self, ):
+    def init_encoding_model(self,):
         self.encoding_model = Encoding_model(self.args, device = self.device)
         self.encoding_model.to(self.device)
         if self.args['model_name'] in ['llama-7b',]:

@@ -53,7 +53,9 @@ To evaluate the model performance, you can refer to the code in *language_genera
 
 ## Full story construction
 
-In addition to the language completion task, our method also supports generating a complete piece of text based on brain signals spanning a few minutes. The relevant code can be found in the directory of *end2end_generation/*.
+In addition to the language completion task, our method also supports generating a complete piece of text based on brain signals spanning a few minutes. The relevant code can be found in the directory of *end2end_generation/*. 
+The implementation of full story construction can be refer to [Tang et al.](https://github.com/HuthLab/semantic-decoding) (thanks for their code).
+To run this code, you also need to download some helpful files from their code, i.e., the *data_lm* directory and transform the vocabulary of their implementation into the vocabulary of Llama-2 or GPT-2 series models.
 Here is a example that generate the human semantics while they are perceiving story of "where there's smoke":
 
 ```bash

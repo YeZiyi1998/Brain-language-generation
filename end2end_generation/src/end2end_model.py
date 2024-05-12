@@ -42,6 +42,8 @@ class End2End_model(Decoding_model):
             decoder_vocab = json.load(open(f'../../data_lm/decoder_vocab.{args["model_name"]}.json', "r"))
         if ('huth' in args['model_name']) is False:
             self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
+        else:
+            self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
         self.top_model.prompt_model = self.prompt_model
         self.decoder = Decoder()
         if self.args['model_name'] == 'llama-7b' or 'gpt' in self.args['model_name']:
@@ -98,7 +100,7 @@ class End2End_model(Decoding_model):
         for content_prev, additional_bs, content_prev_sep, content_true, content_prev_mask, content_true_mask, content_all, content_all_mask, data_id in tqdm.tqdm(test_dataloader, mininterval=300):
             # estimate word rate
             word_rate_float = float(self.word_rate_model.predict([additional_bs.numpy().flatten()])[0])
-            word_rate = int(word_rate_float-0.5)
+            word_rate = int(word_rate_float-self.args['length_penalty'])
             word_rate = max(word_rate, 0)
             
             # word_rate = math.ceil(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
@@ -126,20 +128,26 @@ class End2End_model(Decoding_model):
                 re['content_pred_ids'].append([item.words[-word_rate:]  for item in decoder.beam])
             
             if data_id % 20 == 0:
-                re['result'].append(self.tokenizer.decode(decoder.beam[0].words))
+                re['result'].append(self.tokenizer.decode(decoder.beam[0].words) if self.args['model_name'] != 'huth' else decoder.beam[0].words)
             
             re['word_rate'].append(word_rate)
             re['word_rate_float'].append(word_rate_float)
             
-            if data_id == 20 or data_id == 100 or data_id == 5:
+            if data_id == 20 or data_id == 100:
                 re['result_ids'].append(decoder.beam[0].words)
                 re = convert_int64_to_int(re)
                 json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.{data_id}.json', 'w'))
                 print(f'save results with top {data_id} steps')
             
+            if len(re['content_pred']) > self.args['num_steps']:
+                break
+            
+        re['result'].append(self.tokenizer.decode(decoder.beam[0].words) if self.args['model_name'] != 'huth' else decoder.beam[0].words)
+        re['result_ids'].append(decoder.beam[0].words)
         
-        re['result'].append(self.tokenizer.decode(decoder.beam[0].words))
-        re['result_ids'].append(decoder.beam[0].words )
+        if self.args['num_steps'] > len(re['content_pred']):
+            self.generate(30, decoder, ncontext, additional_bs, additional_bs_mask, content_prev_sep)
+            re['next'] = self.tokenizer.decode(decoder.beam[0].words) if self.args['model_name'] != 'huth' else decoder.beam[0].words
         
         if file_name is not None:
             re = convert_int64_to_int(re)

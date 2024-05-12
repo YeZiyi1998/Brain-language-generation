@@ -9,10 +9,10 @@ import os
 from transformers import GPT2LMHeadModel, GPT2Tokenizer, AutoTokenizer, AutoModel, LlamaForCausalLM, LlamaTokenizer
 
 def segment(result, chunk_size=10,checkpoint_path=''):
-    if 'huth' not in checkpoint_path:
-        result['content_pred'] = [' '.join(result['content_pred'][i:i+chunk_size]) for i in range(0, len(result['content_pred']), chunk_size)]
+    if 'huth' in checkpoint_path:
+        result['content_pred'] = [' '.join(result['content_pred'][i:i+chunk_size]).replace('  ',' ') for i in range(0, len(result['content_pred']), chunk_size)]
     else:
-        result['content_pred'] = [''.join(result['content_pred'][i:i+chunk_size]) for i in range(0, len(result['content_pred']), chunk_size)]
+        result['content_pred'] = [' '.join(result['content_pred'][i:i+chunk_size]).replace('  ',' ') for i in range(0, len(result['content_pred']), chunk_size)]
     result['content_true'] = [' '.join(result['content_true'][i:i+chunk_size]) for i in range(0, len(result['content_true']), chunk_size)]
 
 def split_content_pred_by_results(re):
@@ -87,7 +87,7 @@ def language_evaluate_mask_with_sig(re, metrics, dataset_name='Huth',checkpoint_
         re['content_pred_tokens'].append(normalize_text(re['content_pred'][i]).split())
         if dataset_name in ['Huth']:
             re['content_pred_tokens'][-1] = [word.lower() for word in re['content_pred_tokens'][-1]]
-        re['content_true_tokens'].append(re['content_true'][i].split())
+        re['content_true_tokens'].append(normalize_text(re['content_true'][i]).split())
     
     for mname, metric in metrics.items():
         try:
@@ -112,25 +112,41 @@ def load_metric():
     # if "BERT" in args.metrics: metrics["BERT"] = BERTSCORE(idf_sents = np.load(os.path.join(config.DATA_TEST_DIR, "idf_segments.npy")), rescale = False, score = "recall")
     return metrics
 
+def filter(all_file_names, suffix):
+    result = []
+    for item in all_file_names:
+        if item.endswith(suffix) == False:
+            result.append(item)
+    return result
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-dir', default='', type=str, required=True)
     args = parser.parse_args()
-
+    
+    all_file_names = os.listdir(f'../results/{args.dir}/')
     # for file_name in ['output.n10.json', 'output.n5.json']:
-    for file_name in ['test.json']:
+    for suffix  in ['20.json', '100.json', 'info.json']:
+        all_file_names = filter(all_file_names, suffix)
+    
+    for file_name in all_file_names:
         file_path = f'../results/{args.dir}/{file_name}'
         if os.path.exists(file_path):
             result = json.load(open(file_path))
-            # if type(result['content_pred'][0][0]) is str:
-            #     for i in range(len(result['content_pred'])):
-            #         for k in range(5):
-            #             result['content_pred'][i][k] = result['content_pred'][i][k].strip().split()
-            #     for i in range(len(result['result'])):
-            #         result['result'][i] = result['result'][i].strip().split()
             metrics = load_metric()
             language_evaluate_mask_with_sig(result, metrics, checkpoint_path=args.dir)
-
             output_str = file_path + f" bleu_1: {'%.3f' % np.mean(result['BLEU'])} wer: {'%.3f' % np.mean(result['WER'])} meteor: {'%.3f' % np.mean(result['METEOR'])}"
             print(output_str)
 
+        print(result['content_pred_tokens'][0])
+        
+        # jiayudebug snippet
+        inputs = ''
+        while inputs != 'continue':
+            try:
+                print(eval(inputs))
+            except Exception as e:
+                print('error:', e)
+                pass
+            inputs = input()
+        
