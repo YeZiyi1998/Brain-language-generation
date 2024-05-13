@@ -40,17 +40,15 @@ class End2End_model(Decoding_model):
             decoder_vocab = None
         else:
             decoder_vocab = json.load(open(f'../../data_lm/decoder_vocab.{args["model_name"]}.json', "r"))
-        if ('huth' in args['model_name']) is False:
-            self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
-        else:
-            self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
+        self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
         self.top_model.prompt_model = self.prompt_model
         self.decoder = Decoder()
-        if self.args['model_name'] == 'llama-7b' or 'gpt' in self.args['model_name']:
+        if self.args['model_name'] in ['llama-7b']: #  or 'gpt' in self.args['model_name'] gpt with old tokenizer?
             self.lm = TokenLanguageModel(self.top_model, decoder_vocab, model_name=self.args['model_name'],  )
+            self.token_based = False
         else:
             self.lm = LanguageModel(self.top_model, decoder_vocab)
-        
+            self.token_based = True
     # 可行方法
     # (1）brain + text prompt (截断) -> continuation
     # (2) text prompt (截断) + brain + text prompt(截断) -> continuation
@@ -121,14 +119,14 @@ class End2End_model(Decoding_model):
             self.generate(word_rate, decoder, ncontext, additional_bs, additional_bs_mask, content_prev_sep)
             
             if word_rate > 0:
-                re['content_pred'].append([item.words[-word_rate:] for item in decoder.beam] if self.args['model_name'] == 'huth' else [self.tokenizer.decode(item.words[-word_rate:]) for item in decoder.beam])
+                re['content_pred'].append([item.words[-word_rate:] for item in decoder.beam] if self.token_based else [self.tokenizer.decode(item.words[-word_rate:]) for item in decoder.beam])
                 re['content_pred_ids'].append([item.words[-word_rate:] for item in decoder.beam])
             else:
                 re['content_pred'].append([[] for item in decoder.beam])
                 re['content_pred_ids'].append([item.words[-word_rate:]  for item in decoder.beam])
             
             if data_id % 20 == 0:
-                re['result'].append(self.tokenizer.decode(decoder.beam[0].words) if self.args['model_name'] != 'huth' else decoder.beam[0].words)
+                re['result'].append(decoder.beam[0].words if self.token_based else self.tokenizer.decode(decoder.beam[0].words))
             
             re['word_rate'].append(word_rate)
             re['word_rate_float'].append(word_rate_float)
@@ -142,12 +140,12 @@ class End2End_model(Decoding_model):
             if len(re['content_pred']) > self.args['num_steps']:
                 break
             
-        re['result'].append(self.tokenizer.decode(decoder.beam[0].words) if self.args['model_name'] != 'huth' else decoder.beam[0].words)
+        re['result'].append(decoder.beam[0].words if self.token_based else self.tokenizer.decode(decoder.beam[0].words) )
         re['result_ids'].append(decoder.beam[0].words)
         
         if self.args['num_steps'] > len(re['content_pred']):
             self.generate(30, decoder, ncontext, additional_bs, additional_bs_mask, content_prev_sep)
-            re['next'] = self.tokenizer.decode(decoder.beam[0].words) if self.args['model_name'] != 'huth' else decoder.beam[0].words
+            re['next'] = decoder.beam[0].words if self.token_based else self.tokenizer.decode(decoder.beam[0].words) 
         
         if file_name is not None:
             re = convert_int64_to_int(re)

@@ -2,7 +2,10 @@ from jiwer import wer
 import numpy as np
 # import evaluate
 from nltk.translate import meteor_score
-from download_metrics.bleu2 import compute_bleu
+try:
+    from download_metrics.bleu2 import compute_bleu
+except:
+    from end2end_generation.src.download_metrics.bleu2 import compute_bleu
 from nltk import word_tokenize
 from bert_score import BERTScorer
 """

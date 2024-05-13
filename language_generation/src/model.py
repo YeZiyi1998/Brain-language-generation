@@ -430,6 +430,9 @@ class Decoding_model:
                 fw.write(output_str+'\n')
             print(output_str)
 
+            # tmp code
+            torch.save(self.get_model_dict(), self.args['checkpoint_path']+f'/model.{epoch}.pt')
+
             if valid_loss < best_loss:
                 best_loss = valid_loss
                 early_stop_epochs = 0

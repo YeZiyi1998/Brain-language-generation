@@ -1,4 +1,7 @@
-from utils_eval import WER, BLEU, METEOR
+try:
+    from utils_eval import WER, BLEU, METEOR
+except:
+    from end2end_generation.src.utils_eval import WER, BLEU, METEOR 
 import nltk
 import json
 import copy
@@ -37,7 +40,7 @@ def split_content_pred_by_results2(re, checkpoint_path):
     if tokenizer is None:
         if 'gpt2' in checkpoint_path:
             tokenizer = AutoTokenizer.from_pretrained('/home/bingxing2/home/scx7140/.cache/huggingface/hub/models--gpt2-large/snapshots/97935fc1a406f447320c3db70fe9e9875dca2595')
-        elif 'llama-7b' in checkpoint_path:
+        elif 'llama-7b' in checkpoint_path or 'release' in checkpoint_path:
             tokenizer = AutoTokenizer.from_pretrained('/home/bingxing2/home/scx7140/.cache/huggingface/hub/models--meta-llama--Llama-2-7b-hf/snapshots/8cca527612d856d7d32bd94f8103728d614eb852')  
     re['content_pred'] = []
     result = re['result_ids'][-1]
@@ -67,9 +70,9 @@ def normalize_text(text_from_tokens):
     text_from_tokens = re.sub(r'(\w+)\;(\w+)', r'\1; \2', text_from_tokens)
     return text_from_tokens
 
-def language_evaluate_mask_with_sig(re, metrics, dataset_name='Huth',checkpoint_path=''):
+def language_evaluate_mask_with_sig(re, metrics, dataset_name='Huth',token_based=False, checkpoint_path=None):
     re['content_pred_old'] = copy.deepcopy(re['content_pred'])
-    if 'huth' not in checkpoint_path:
+    if token_based == False:
         split_content_pred_by_results2(re, checkpoint_path)
     else:
         split_content_pred_by_results(re, )
@@ -122,7 +125,11 @@ def filter(all_file_names, suffix):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-dir', default='', type=str, required=True)
+    parser.add_argument('-token_based', default='False', type=str, required=False)
     args = parser.parse_args()
+    args.token_based = args.token_based == 'True'
+    if 'huth' in args.dir:
+        args.token_based = True
     
     all_file_names = os.listdir(f'../results/{args.dir}/')
     # for file_name in ['output.n10.json', 'output.n5.json']:
@@ -134,19 +141,19 @@ if __name__ == '__main__':
         if os.path.exists(file_path):
             result = json.load(open(file_path))
             metrics = load_metric()
-            language_evaluate_mask_with_sig(result, metrics, checkpoint_path=args.dir)
+            language_evaluate_mask_with_sig(result, metrics, token_based = args.token_based,checkpoint_path = args.dir)
             output_str = file_path + f" bleu_1: {'%.3f' % np.mean(result['BLEU'])} wer: {'%.3f' % np.mean(result['WER'])} meteor: {'%.3f' % np.mean(result['METEOR'])}"
             print(output_str)
 
-        print(result['content_pred_tokens'][0])
+        # print(result['content_pred_tokens'][0])
         
-        # jiayudebug snippet
-        inputs = ''
-        while inputs != 'continue':
-            try:
-                print(eval(inputs))
-            except Exception as e:
-                print('error:', e)
-                pass
-            inputs = input()
+        # # jiayudebug snippet
+        # inputs = ''
+        # while inputs != 'continue':
+        #     try:
+        #         print(eval(inputs))
+        #     except Exception as e:
+        #         print('error:', e)
+        #         pass
+        #     inputs = input()
         

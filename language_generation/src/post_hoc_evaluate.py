@@ -236,7 +236,7 @@ if __name__ == '__main__':
     result_path = 'history_0506//Huth_1_gpt2-xl_0504_no_pretrain'
     result_path = 'Huth_1_gpt2-xl_ds'
     result_path = 'Huth_1_llama-7b_pre0'
-    
+    result_path = 'Huth_1_release'
     # comparing BrainLLM and PerBrainLLM
     base_path = '../results/'
     model_dir_list = [{'path_name':base_path + result_path, 'file_name':'test.json'}]
