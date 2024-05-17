@@ -37,8 +37,7 @@ class Top_model():
         content_all = content_all[:,-500:] # beam_size * seq_length
         content_all_mask = torch.ones(content_all.shape).int().to(self.device)
         content_all = content_all.to(self.device)
-
-        content_all2, content_all_mask2 = self.prompt_model.tokenize(content_all, content_all_mask, additional_bs, additional_bs_mask, content_prev_sep, use_fake=False, mode='test')
+        content_all2, content_all_mask2 = self.prompt_model.tokenize(content_all, content_all_mask, additional_bs[:content_all.shape[0]], additional_bs_mask[:content_all.shape[0]], content_prev_sep[:content_all.shape[0]], use_fake=False, mode='test')
 
         with torch.no_grad():
             output = self.model(inputs_embeds=content_all2, attention_mask = content_all_mask2) 
@@ -53,15 +52,16 @@ class Top_model():
         context_array = np.array([self.encode(words) for words in contexts])
         return torch.tensor(context_array).long()
 
-def get_nucleus(probs, nuc_mass, nuc_ratio):
+def get_nucleus(probs, nuc_mass, nuc_ratio, k=200):
     """identify words that constitute a given fraction of the probability mass
     """
-    nuc_ids = np.where(probs >= np.max(probs) * nuc_ratio)[0]
+    nuc_ids = np.argsort(probs)[-k:][::-1]
+    # nuc_ids = np.where(probs >= np.max(probs) * nuc_ratio)[0]
     nuc_pairs = sorted(zip(nuc_ids, probs[nuc_ids]), key = lambda x : -x[1]) 
     sum_mass = np.cumsum([x[1] for x in nuc_pairs])
     cutoffs = np.where(sum_mass >= nuc_mass)[0]
     if len(cutoffs) > 0: nuc_pairs = nuc_pairs[:cutoffs[0]+1]
-    nuc_ids = [x[0] for x in nuc_pairs]                     
+    nuc_ids = [x[0] for x in nuc_pairs]                          
     return nuc_ids
 
 def in_context(word, context):
@@ -82,9 +82,14 @@ def context_filter(proposals, context):
 class LanguageModel():
     """class for generating word sequences using a language model
     """
-    def __init__(self, model, vocab, nuc_mass = 1.0, nuc_ratio = 0.0):        
+    def __init__(self, model, vocab, nuc_mass = 1.0, nuc_ratio = 0.0): 
         self.model = model
-        self.ids = {i for word, i in self.model.word2id.items() if word in set(vocab)}
+        if type(vocab[0]) is int:    
+            self.ids = vocab
+            self.type_is_id = True
+        else:
+            self.ids = {i for word, i in self.model.word2id.items() if word in set(vocab)}
+            self.type_is_id = False
         self.nuc_mass, self.nuc_ratio = nuc_mass, nuc_ratio
         
     def ps(self, contexts,additional_bs=None,additional_bs_mask=None, content_prev_sep=None):
@@ -122,10 +127,9 @@ class TokenLanguageModel(LanguageModel):
     def __init__(self, model, vocab, nuc_mass = 1.0, nuc_ratio = 0.0, model_name=''):
         if vocab is None:
             vocab = {}  
-        super().__init__(model, vocab, )      
-        self.ids = set([item for word in vocab for item in self.model.encode(word)])
+        super().__init__(model, vocab, )    
         self.model_name = model_name
-        self.stop_word_ids = set([item for item_list in STOPWORDS_ids[self.model_name] for item in item_list])        
+        self.stop_word_ids = set(STOPWORDS_ids[self.model_name])        
 
     def ps(self, contexts,additional_bs=None,additional_bs_mask=None, content_prev_sep=None):
         """get probability distributions over the next words for each context
@@ -163,6 +167,7 @@ class TokenLanguageModel(LanguageModel):
         """
         cut_words = []
         cut_words.extend([context[i+1] for i, word in enumerate(context[:-1]) if word == context[-1]]) # bigrams
+        len_cut_words = len(cut_words)
         cut_words.extend([x for i, x in enumerate(proposals) if x not in self.stop_word_ids and x in context]) # unigrams
         return [x for x in proposals if x not in cut_words]
 

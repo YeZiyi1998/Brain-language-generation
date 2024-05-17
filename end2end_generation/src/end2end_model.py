@@ -43,7 +43,7 @@ class End2End_model(Decoding_model):
         self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
         self.top_model.prompt_model = self.prompt_model
         self.decoder = Decoder()
-        if self.args['model_name'] in ['llama-7b']: #  or 'gpt' in self.args['model_name'] gpt with old tokenizer?
+        if self.args['model_name'] in ['llama-7b','gpt2-xl']: #  or 'gpt' in self.args['model_name'] gpt with old tokenizer?
             self.lm = TokenLanguageModel(self.top_model, decoder_vocab, model_name=self.args['model_name'],  )
             self.token_based = False
         else:
@@ -82,7 +82,8 @@ class End2End_model(Decoding_model):
                 extend_words = [hyp.words + [x] for x in nuc] # n_candidates 计算生成这些词之后的情况 如 [i was at a]
                 # trs [1 2 3 4 5 6]; 
                 local_extensions = [Hypothesis(parent = hyp, extension = x) for x in zip(nuc, logprobs, [None for _ in range(len(logprobs))])] # 所有可能的extensions
-                likelihoods = logprobs
+                likelihoods = logprobs + sum(hyp.logprobs)
+                # likelihoods = logprobs 
                 decoder.add_extensions(local_extensions, likelihoods, nextensions) # 基于bayes来生成下一个词接到后面
             decoder.extend(verbose = False)
 
