@@ -170,7 +170,7 @@ class FMRI_dataset():
                     additional_bs = np.array([ds_dataset[story]['fmri'][idx] for idx in item['word'][k]['additional']])
                     content_true = item['word'][k]['content']
                     id2info[tmp_id] = {'story':story, 'item_id':item_id, 'k': k}
-                    packed_info = self.pack_info(content_prev, additional_bs, content_true, trail_id, id = tmp_id)
+                    packed_info = self.pack_info(content_prev.lower(), additional_bs, content_true.lower(), trail_id, id = tmp_id)
                     tmp_id += 1
                     self.inputs.append(packed_info)
             
@@ -198,11 +198,11 @@ class FMRI_dataset():
                         if args['data_spliting'] == 'cross_story':
                             trail_id = data_info2random_number[data_info2.index(story)]
                         if args['data_spliting'] == 'end2end':
-                            trail_id = 0.3 if story == 'wheretheressmoke' else 0.7
+                            trail_id = 0.3 if story == 'wheretheressmoke' and self.args['end2end_part'][0] < item_id / len(input_dataset[story]) and self.args['end2end_part'][1] > item_id / len(input_dataset[story]) else 0.7
                         else:
                             trail_id = content_true2idx[content_true]
                         id2info[tmp_id] = {'story':story, 'item_id':item_id, 'k': k}
-                        packed_info = self.pack_info(content_prev, additional_bs, content_true, trail_id, id = tmp_id)
+                        packed_info = self.pack_info(content_prev.lower(), additional_bs, content_true.lower(), trail_id, id = tmp_id)
                         tmp_id += 1
                         if torch.sum(packed_info['content_true_mask']) > 0:
                             self.inputs.append(packed_info)

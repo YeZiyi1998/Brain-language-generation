@@ -39,6 +39,7 @@ def get_config():
     parser.add_argument('-load_check_point', default = "False" ,required=False)
     parser.add_argument('-enable_grad', default = "False" ,required=False)
     parser.add_argument('-mode', default = "train" , choices = ['train','evaluate', 'all', 'end2end', 'acc', 'only_train'],required=False)
+    parser.add_argument('-end2end_part', default = '-1,2', required=False)
     parser.add_argument('-additional_loss', default = 0, type = float, required=False)
     parser.add_argument('-fake_input', default = 0, type = float, required=False)
     parser.add_argument('-add_end', default = "False", required=False)
@@ -76,6 +77,8 @@ def get_config():
     parser.add_argument('-use_decoder_vocab', default = 'True', type=str, required=False) 
     parser.add_argument('-num_steps', default = 1000, type=int, required=False) 
     parser.add_argument('-length_penalty', default = 0.3, type=float, required=False) 
+    parser.add_argument('-beam_width', default = 5, type=int, required=False) 
+    parser.add_argument('-extensions', default = 5, type=int, required=False) 
     args = vars(parser.parse_args())
     args['fmri_pca'] = args['fmri_pca'] == 'True'
     args['load_check_point'] = args['load_check_point'] == 'True'
@@ -88,6 +91,7 @@ def get_config():
     args['use_bad_words_ids'] = args['use_bad_words_ids'] == 'True'
     args['use_decoder_vocab'] = args['use_decoder_vocab'] == 'True'
     args['roi_selected'] = json.loads(args['roi_selected'])
+    args['end2end_part'] = [float(item) for item in args['end2end_part'].split(',')]
     tmp_dataset2args = dataset2args[args['task_name'].split('_')[0]]
     for k, v in tmp_dataset2args.items():
         if k not in args.keys() or args[k] == '':

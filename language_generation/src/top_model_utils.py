@@ -105,7 +105,7 @@ class LanguageModel():
     def beam_propose(self, beam, context_words, gcontext=None, additional_bs=None,additional_bs_mask=None,content_prev_sep=None):
         """get possible extension words for each hypothesis in the decoder beam
         """
-        if len(beam) == 1: 
+        if len(beam[0].words) == 0: 
             nuc_words = [w for w in INIT if self.model.word2id[w] in self.ids]
             nuc_logprobs = np.log(np.ones(len(nuc_words)) / len(nuc_words))
             return [(nuc_words, nuc_logprobs)]
@@ -124,12 +124,13 @@ class LanguageModel():
 class TokenLanguageModel(LanguageModel):
     """class for generating word sequences using a language model
     """
-    def __init__(self, model, vocab, nuc_mass = 1.0, nuc_ratio = 0.0, model_name=''):
+    def __init__(self, model, vocab, nuc_mass = 1.0, nuc_ratio = 0.0, model_name='',task_name=''):
         if vocab is None:
             vocab = {}  
         super().__init__(model, vocab, )    
         self.model_name = model_name
-        self.stop_word_ids = set(STOPWORDS_ids[self.model_name])        
+        self.stop_word_ids = set(STOPWORDS_ids[self.model_name])     
+        self.task_name = task_name   
 
     def ps(self, contexts,additional_bs=None,additional_bs_mask=None, content_prev_sep=None):
         """get probability distributions over the next words for each context
@@ -140,27 +141,6 @@ class TokenLanguageModel(LanguageModel):
         else:
             probs = self.model.get_probs_generation(context_arr, additional_bs=additional_bs, content_prev_sep=content_prev_sep, additional_bs_mask=additional_bs_mask)
         return probs[:, -1] 
-
-    # def context_filter(self, proposals, context, ):
-    #     """filter out words that occur in a context to prevent repetitions
-    #     """
-    #     cut_words = []
-    #     cut_words.extend([context[i+1] for i, word in enumerate(context[:-1]) if word == context[-1]]) # bigrams
-    #     context2 = self.model.tokenizer.decode(context)
-    #     proposals2 = [self.model.tokenizer.decode([item]) for item in proposals]
-    #     proposals3 = [self.model.tokenizer.decode([context[-1], item]) for item in proposals]
-    #     cut_words.extend([x for i, x in enumerate(proposals) if x not in self.stop_word_ids and (proposals2[i] in context or proposals3[i] in context2)]) # unigrams
-    #     if len(context) > 5:
-    #         # jiayudebug snippet
-    #         inputs = ''
-    #         while inputs != 'continue':
-    #             try:
-    #                 print(eval(inputs))
-    #             except Exception as e:
-    #                 print('error:', e)
-    #                 pass
-    #             inputs = input()
-    #     return [x for x in proposals if x not in cut_words]
     
     def context_filter(self, proposals, context, ):
         """filter out words that occur in a context to prevent repetitions
@@ -169,12 +149,16 @@ class TokenLanguageModel(LanguageModel):
         cut_words.extend([context[i+1] for i, word in enumerate(context[:-1]) if word == context[-1]]) # bigrams
         len_cut_words = len(cut_words)
         cut_words.extend([x for i, x in enumerate(proposals) if x not in self.stop_word_ids and x in context]) # unigrams
+        cut_words.extend([x for i, x in enumerate(proposals) if x in self.stop_word_ids and x in context[-3:]]) # unigrams
+        if self.model_name == 'gpt2-xl' and self.task_name == 'Huth_3':
+            cut_words.extend([x for i, x in enumerate(proposals) if (context[-1] == 11752 and x == 616) or (context[-1] == 588 and x == 11752) or (context[-1] == 460 and x == 466) or (context[-1] == 373 and x == 588)]) # unigrams
+            cut_words.extend([12008])
         return [x for x in proposals if x not in cut_words]
 
     def beam_propose(self, beam, context_words, gcontext, additional_bs=None,additional_bs_mask=None,content_prev_sep=None):
         """get possible extension words for each hypothesis in the decoder beam
         """
-        if len(beam) == 1: 
+        if len(beam[0].words) == 0: 
             nuc_words = [w_id for w_id in INIT_ids[self.model_name]]
             nuc_logprobs = np.log(np.ones(len(nuc_words)) / len(nuc_words))
             return [(nuc_words, nuc_logprobs)]

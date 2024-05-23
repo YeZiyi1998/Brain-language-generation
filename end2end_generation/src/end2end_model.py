@@ -14,7 +14,7 @@ import sys
 import math
 import sklearn
 import numpy as np
-from Decoder import Decoder, LMFeatures, Hypothesis
+from Decoder import Decoder, Hypothesis
 sys.path.append('../../language_generation/')
 from src.settings import model_name2path, model2hidden
 from src.model_utils import Prompt_model
@@ -42,9 +42,9 @@ class End2End_model(Decoding_model):
             decoder_vocab = json.load(open(f'../../data_lm/decoder_vocab.{args["model_name"]}.json', "r"))
         self.top_model = Top_model(self.model, self.tokenizer, device = self.device, prompt_model = self.prompt_model)
         self.top_model.prompt_model = self.prompt_model
-        self.decoder = Decoder()
+        self.decoder = Decoder(beam_width=self.args['beam_width'], extensions=self.args['extensions'])
         if self.args['model_name'] in ['llama-7b','gpt2-xl']: #  or 'gpt' in self.args['model_name'] gpt with old tokenizer?
-            self.lm = TokenLanguageModel(self.top_model, decoder_vocab, model_name=self.args['model_name'],  )
+            self.lm = TokenLanguageModel(self.top_model, decoder_vocab, model_name=self.args['model_name'],  task_name = self.args['task_name'])
             self.token_based = False
         else:
             self.lm = LanguageModel(self.top_model, decoder_vocab)
@@ -82,7 +82,7 @@ class End2End_model(Decoding_model):
                 extend_words = [hyp.words + [x] for x in nuc] # n_candidates 计算生成这些词之后的情况 如 [i was at a]
                 # trs [1 2 3 4 5 6]; 
                 local_extensions = [Hypothesis(parent = hyp, extension = x) for x in zip(nuc, logprobs, [None for _ in range(len(logprobs))])] # 所有可能的extensions
-                likelihoods = logprobs + sum(hyp.logprobs)
+                likelihoods = logprobs + sum(hyp.logprobs[-self.args['ncontext']:])
                 # likelihoods = logprobs 
                 decoder.add_extensions(local_extensions, likelihoods, nextensions) # 基于bayes来生成下一个词接到后面
             decoder.extend(verbose = False)
@@ -102,10 +102,7 @@ class End2End_model(Decoding_model):
             word_rate = int(word_rate_float-self.args['length_penalty'])
             word_rate = max(word_rate, 0)
             
-            # word_rate = math.ceil(self.word_rate_model.predict([additional_bs.numpy().flatten()]))
-            # ncontext = min(5, word_rate)
             ncontext = self.args['ncontext']
-            # word_rate = min(10, word_rate)
             
             # input construction
             content_prev_sep = content_prev_sep.expand(self.decoder.beam_width, -1,)
@@ -132,11 +129,11 @@ class End2End_model(Decoding_model):
             re['word_rate'].append(word_rate)
             re['word_rate_float'].append(word_rate_float)
             
-            if data_id == 20 or data_id == 100:
-                re['result_ids'].append(decoder.beam[0].words)
-                re = convert_int64_to_int(re)
-                json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.{data_id}.json', 'w'))
-                print(f'save results with top {data_id} steps')
+            # if data_id == 20 or data_id == 100:
+            #     re['result_ids'].append(decoder.beam[0].words)
+            #     re = convert_int64_to_int(re)
+            #     json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.{data_id}.json', 'w'))
+            #     print(f'save results with top {data_id} steps')
             
             if len(re['content_pred']) > self.args['num_steps']:
                 break

@@ -1,9 +1,13 @@
-from utils_eval import WER, BLEU, METEOR
+try:
+    from utils_eval import WER, BLEU, METEOR
+except:
+    from src.utils_eval import WER, BLEU, METEOR
 import nltk
 import json
 import copy
 import re
 import numpy as np
+import argparse
 
 def segment(result, chunk_size=10,checkpoint_path=''):
     if 'huth' not in checkpoint_path:
@@ -67,15 +71,29 @@ if __name__ == '__main__':
         output_str = user + f": bleu_1: {'%.4f' % np.mean(result['BLEU'])} wer: {'%.4f' % np.mean(result['WER'])} meteor: {'%.4f' % np.mean(result['METEOR'])}"
         print(output_str)
     
-    # evaluate permutated results
-    # It seems that when running Huth's code, the signal is permutated, but this is just what we want to test
-    result_permutated = np.load("/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/wheretheressmoke.npz")
-    words = result_permutated['words']
-    times = result_permutated['times']
-    cutoffs = windows(times[0], times[-1], duration=20, step=20)
-    result_permutated = segment_data_huth(words, times, cutoffs)
-    result['content_pred_tokens'] = result_permutated
-    language_evaluate_mask_with_sig(result, metrics)
-    output_str = 'Huth_2 permutated' + f": bleu_1: {'%.4f' % np.mean(result['BLEU'])} wer: {'%.4f' % np.mean(result['WER'])} meteor: {'%.4f' % np.mean(result['METEOR'])}"
-    print(output_str)
+    # # evaluate permutated results
+    # # It seems that when running Huth's code, the signal is permutated, but this is just what we want to test
+    # result_permutated = np.load("/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/wheretheressmoke.npz")
+    # words = result_permutated['words']
+    # times = result_permutated['times']
+    # cutoffs = windows(times[0], times[-1], duration=20, step=20)
+    # result_permutated = segment_data_huth(words, times, cutoffs)
+    # result['content_pred_tokens'] = result_permutated
+    # language_evaluate_mask_with_sig(result, metrics)
+    # output_str = 'Huth_2 permutated' + f": bleu_1: {'%.4f' % np.mean(result['BLEU'])} wer: {'%.4f' % np.mean(result['WER'])} meteor: {'%.4f' % np.mean(result['METEOR'])}"
+    # print(output_str)
+    
+    # free evaluating
+    # parser = argparse.ArgumentParser()
+    # parser.add_argument('-file_name', type=str, required=False)
+    # args = parser.parse_args()
+    # base_path = f'/home/bingxing2/home/scx7140/fmri/Brain-language-generation/paper/result/{args.file_name}.json'
+    # result = json.load(open(base_path))
+    # result['content_true_tokens'] = segment_data([item.strip().split() for item in result['reference']])
+    # for user in ['result']:
+    #     result['content_pred_tokens'] = segment_data([item.strip().split() for item in result[user]])
+    #     language_evaluate_mask_with_sig(result, metrics)
+    #     output_str = user + f": bleu_1: {'%.4f' % np.mean(result['BLEU'])} wer: {'%.4f' % np.mean(result['WER'])} meteor: {'%.4f' % np.mean(result['METEOR'])}"
+    #     print(output_str)
+    
     

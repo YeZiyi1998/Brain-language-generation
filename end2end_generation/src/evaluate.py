@@ -145,7 +145,7 @@ if __name__ == '__main__':
             output_str = file_path + f" bleu_1: {'%.3f' % np.mean(result['BLEU'])} wer: {'%.3f' % np.mean(result['WER'])} meteor: {'%.3f' % np.mean(result['METEOR'])}"
             print(output_str)
 
-        print(result['content_pred_tokens'][0])
+        # print(result['content_pred_tokens'][0])
         
         # # jiayudebug snippet
         # inputs = ''
