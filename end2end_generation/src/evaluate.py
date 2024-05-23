@@ -93,18 +93,7 @@ def language_evaluate_mask_with_sig(re, metrics, dataset_name='Huth',token_based
         re['content_true_tokens'].append(normalize_text(re['content_true'][i]).split())
     
     for mname, metric in metrics.items():
-        try:
-            re[mname] = np.array([metric.score(ref = [re['content_true_tokens'][i]], pred = [re['content_pred_tokens'][i]]) for i in range(len(re['content_pred']))])
-        except:
-            # jiayudebug snippet
-            inputs = ''
-            while inputs != 'continue':
-                try:
-                    print(eval(inputs))
-                except Exception as e:
-                    print('error:', e)
-                    pass
-                inputs = input()
+        re[mname] = np.array([metric.score(ref = [re['content_true_tokens'][i]], pred = [re['content_pred_tokens'][i]]) for i in range(len(re['content_pred']))])
     return re
 
 def load_metric():
