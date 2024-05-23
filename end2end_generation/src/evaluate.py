@@ -121,7 +121,6 @@ if __name__ == '__main__':
         args.token_based = True
     
     all_file_names = os.listdir(f'../results/{args.dir}/')
-    # for file_name in ['output.n10.json', 'output.n5.json']:
     for suffix  in ['20.json', '100.json', 'info.json']:
         all_file_names = filter(all_file_names, suffix)
     
@@ -133,16 +132,3 @@ if __name__ == '__main__':
             language_evaluate_mask_with_sig(result, metrics, token_based = args.token_based,checkpoint_path = args.dir)
             output_str = file_path + f" bleu_1: {'%.3f' % np.mean(result['BLEU'])} wer: {'%.3f' % np.mean(result['WER'])} meteor: {'%.3f' % np.mean(result['METEOR'])}"
             print(output_str)
-
-        # print(result['content_pred_tokens'][0])
-        
-        # # jiayudebug snippet
-        # inputs = ''
-        # while inputs != 'continue':
-        #     try:
-        #         print(eval(inputs))
-        #     except Exception as e:
-        #         print('error:', e)
-        #         pass
-        #     inputs = input()
-        
