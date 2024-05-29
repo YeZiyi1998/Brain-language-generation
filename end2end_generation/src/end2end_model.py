@@ -87,7 +87,7 @@ class End2End_model(Decoding_model):
                 decoder.add_extensions(local_extensions, likelihoods, nextensions) # 基于bayes来生成下一个词接到后面
             decoder.extend(verbose = False)
 
-    def test_beam(self, test_dataset, file_name=None):
+    def test_beam(self, test_dataset, file_name=None, print_half_result=False):
         test_dataloader = DataLoader(test_dataset, batch_size = 1, shuffle=False, num_workers=1)
         self.prompt_model.eval()
         
@@ -129,11 +129,11 @@ class End2End_model(Decoding_model):
             re['word_rate'].append(word_rate)
             re['word_rate_float'].append(word_rate_float)
             
-            # if data_id == 20 or data_id == 100:
-            #     re['result_ids'].append(decoder.beam[0].words)
-            #     re = convert_int64_to_int(re)
-            #     json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.{data_id}.json', 'w'))
-            #     print(f'save results with top {data_id} steps')
+            if (data_id == 20 or data_id == 100) and print_half_result:
+                re['result_ids'].append(decoder.beam[0].words)
+                re = convert_int64_to_int(re)
+                json.dump(re, open(self.args['checkpoint_path']+'/'+file_name+f'.{data_id}.json', 'w'))
+                print(f'save results with top {data_id} steps')
             
             if len(re['content_pred']) > self.args['num_steps']:
                 break

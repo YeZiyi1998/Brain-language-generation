@@ -33,7 +33,6 @@ def normalize_text(text_from_tokens):
     return text_from_tokens
 
 def language_evaluate_mask_with_sig(re, metrics, dataset_name='Huth', checkpoint_path=''):
-    
     for mname, metric in metrics.items():
         re[mname] = np.array([metric.score(ref = [re['content_true_tokens'][i]], pred = [re['content_pred_tokens'][i]]) for i in range(len(re['content_pred_tokens']))])
     return re
