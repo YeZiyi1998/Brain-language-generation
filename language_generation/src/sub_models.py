@@ -67,8 +67,11 @@ class RNN(nn.Module):
         output = self.fc(output)
         return output
 
-    def init_hidden(self, batch_size):
-        return torch.zeros(1, batch_size, self.hidden_size).to(self.device)
+    def init_hidden(self, batch_size, half=True):
+        if half:
+            return torch.zeros(1, batch_size, self.hidden_size).half().to(self.device)
+        else:
+            return torch.zeros(1, batch_size, self.hidden_size).to(self.device)
 
 class Linear(nn.Module):
     def __init__(self, input_size, output_size, args=None, seqlength=1):

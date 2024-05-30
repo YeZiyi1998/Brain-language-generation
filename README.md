@@ -51,20 +51,20 @@ python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name lla
 
 To evaluate the model performance, you can refer to the code in *language_generation/src/post_hoc_evaluate.py*
 
-## Full story construction
+## Full-text construction
 
 In addition to the language completion task, our method also supports generating a complete piece of text based on brain signals spanning a few minutes. The relevant code can be found in the directory of *end2end_generation/*. 
-The implementation of full story construction can be refer to [Tang et al.](https://github.com/HuthLab/semantic-decoding) (thanks for their code).
+The implementation of full story construction is based on [Tang et al.](https://github.com/HuthLab/semantic-decoding) (thanks for their code).
 To run this code, you also need to download some helpful files from their code, i.e., the *data_lm* directory and transform the vocabulary of their implementation into the vocabulary of Llama-2 or GPT-2 series models.
 Here is a example that generate the human semantics while they are perceiving story of "where there's smoke":
 
 ```bash
 cd language_generation/src
 # train BrainLLM with the spliting strategy that left out the story of "where there's smoke"
-python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path Huth_1 -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 10 -wandb none -mode all -dataset_path ../../dataset/ -pos True -data_spliting end2end
+python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name gpt2-xl -checkpoint_path Huth_1_gpt2-xl -batch_size 8 -lr 1e-4 -pos False -pretrain_lr 1e-3 -pretrain_epochs 0 -wandb none -mode all -dataset_path ../../dataset/ -pos True -data_spliting end2end
 cd ../end2end_generation/src
 # run inference for full story construction
-python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name llama-7b -checkpoint_path Huth_1 -wandb none -mode evaluate -pos True -data_spliting end2end -mode end2end 
+python main.py -task_name Huth_1 -cuda 0 -load_check_point False -model_name gpt2-xl -checkpoint_path Huth_1_gpt2-xl -wandb none -mode evaluate -pos True -data_spliting end2end -mode end2end -use_bad_words_ids False -ncontext 10 -gcontext 10 -length_penalty 0.3 -beam_width 3 -extensions 3
 # run evaluation with Huth's metrics
 python evaluate.py -dir Huth_1
 ``` 
@@ -149,14 +149,14 @@ A preprocessed verison dataset is released in [Tsinghua Cloud](https://cloud.tsi
 This is the overall experimental results in terms of language similarity metrics. Refer to our paper for the explaination of metrics and more analyses.
 | Dataset    | Model        | Bleu-1(↑) | ROUGE-1(↑) | ROUGE-L(↑) | WER(↓) |
 |------------|--------------|-----------|------------|------------|--------|
-| Pereira’s  | BrainLLM     | 0.3333    | 0.2987     | 0.2877     | 0.7681 |
-|            | PerBrainLLM  | 0.3249    | 0.2875     | 0.2771     | 0.7781 |
+| Pereira’s  | BrainLLM     | 0.3432    | 0.2987     | 0.2878     | 0.7576 |
+|            | PerBrainLLM  | 0.3269    | 0.2815     | 0.2751     | 0.7783 |
 |            | StdLLM          | 0.2415    | 0.2133     | 0.2096     | 0.8349 |
 | Huth’s     | BrainLLM     | 0.1899    | 0.1780     | 0.1709     | 0.8946 |
 |            | PerBrainLLM  | 0.1668    | 0.1536     | 0.1474     | 0.9109 |
 |            | StdLLM          | 0.1500    | 0.1360     | 0.1310     | 0.9200 |
-| Narratives | BrainLLM     | 0.1375    | 0.1249     | 0.1209     | 0.9239 |
-|            | PerBrainLLM  | 0.1269    | 0.1144     | 0.1105     | 0.9311 |
+| Narratives | BrainLLM     | 0.1375    | 0.1301     | 0.1209     | 0.9239 |
+|            | PerBrainLLM  | 0.1269    | 0.1211     | 0.1105     | 0.9311 |
 |            | StdLLM          | 0.0953    | 0.0858     | 0.0829     | 0.9485 |
 
 

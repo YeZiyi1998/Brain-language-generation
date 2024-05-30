@@ -121,6 +121,8 @@ if __name__ == '__main__':
         args.token_based = True
     
     all_file_names = os.listdir(f'../results/{args.dir}/')
+    
+    # filter out temporary results
     for suffix  in ['20.json', '100.json', 'info.json']:
         all_file_names = filter(all_file_names, suffix)
     
