@@ -234,7 +234,6 @@ def is_only_dot_space(text):
 
 if __name__ == '__main__':
     result_path = 'example'
-    result_path = 'Huth_1_gpt2-xl_end2end'
     # comparing BrainLLM and PerBrainLLM
     base_path = '../results/'
     model_dir_list = [{'path_name':base_path + result_path, 'file_name':'test.json'}]
