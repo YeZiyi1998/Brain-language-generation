@@ -81,6 +81,7 @@ In addition to PyTorch, we adopt several publicly available packages, which can 
 ```bash
 pip install -r requirements.txt
 ```
+Note: Llama-7b may produce NaNs during half-precision training. If you encounter this issue, you can refer to this: [https://github.com/huggingface/transformers/issues/25065](https://github.com/huggingface/transformers/issues/25065).
 
 ### Model Training
 To train the model, you need to special the parameter *-mode* as *training* (only training) or *all* (training and evaluation).
