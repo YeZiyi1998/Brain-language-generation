@@ -72,7 +72,7 @@ if __name__ == '__main__':
     
     # # evaluate permutated results
     # # It seems that when running Huth's code, the signal is permutated, but this is just what we want to test
-    # result_permutated = np.load("/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/wheretheressmoke.npz")
+    # result_permutated = np.load("../../data_lm/wheretheressmoke.npz")
     # words = result_permutated['words']
     # times = result_permutated['times']
     # cutoffs = windows(times[0], times[-1], duration=20, step=20)
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
     # parser.add_argument('-file_name', type=str, required=False)
     # args = parser.parse_args()
-    # base_path = f'/home/bingxing2/home/scx7140/fmri/Brain-language-generation/paper/result/{args.file_name}.json'
+    # base_path = f'../../paper/result/{args.file_name}.json'
     # result = json.load(open(base_path))
     # result['content_true_tokens'] = segment_data([item.strip().split() for item in result['reference']])
     # for user in ['result']:

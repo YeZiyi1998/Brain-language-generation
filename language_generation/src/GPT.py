@@ -68,8 +68,6 @@ class GPT():
     """wrapper for https://huggingface.co/openai-gpt
     """
     def __init__(self, path, vocab, device = 'cpu', prompt_model=None):  
-        # vocab = json.load(open('/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/vocab.json'))
-        # ptah = "/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/model"
         self.device = device
         self.model = AutoModelForCausalLM.from_pretrained(path).eval().to(self.device)
         self.vocab = vocab

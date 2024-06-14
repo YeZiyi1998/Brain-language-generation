@@ -26,4 +26,5 @@ model_name2path = {
                     'llama-7b': llama_7b_2_dict[server_name],
                     'gpt2':gpt2_dict[server_name],
                     'gpt2-xl':gpt2_xl_dict[server_name],
+                    'huth': '/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived'
                 }

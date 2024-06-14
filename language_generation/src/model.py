@@ -49,8 +49,8 @@ class Decoding_model:
                 self.model = LlamaForCausalLM.from_pretrained(args['model_name']).to(self.device)
             self.model.half()
         elif 'huth' in args['model_name']:
-            vocab = json.load(open('/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/vocab.json'))
-            path = "/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/perceived/model"
+            vocab = json.load(open(f"{model_name2path[args['model_name']]}/vocab.json"))
+            path = f"{model_name2path[args['model_name']]}/model"
             self.GPT = GPT(vocab=vocab, path=path, device=self.device,)
             self.model = self.GPT.model
             self.tokenizer = GPT_Tokenizer(gpt=self.GPT)      
