@@ -8,11 +8,17 @@ except:
     from end2end_generation.src.download_metrics.bleu2 import compute_bleu
 from nltk import word_tokenize
 from bert_score import BERTScorer
+
+stop_words = set(stopwords.words('english'))
+def remove_stopwords(tokens):
+    global stop_words
+    return [word for word in tokens if word.lower() not in stop_words]
+
 """
 WER
 """
 class WER(object):
-    def __init__(self, use_score = True):
+    def __init__(self, use_score = True, remove_stopwords=False):
         self.use_score = use_score
     
     def score(self, ref, pred):
@@ -27,7 +33,7 @@ class WER(object):
 BLEU (https://aclanthology.org/P02-1040.pdf)
 """
 class BLEU(object):
-    def __init__(self, n = 4):
+    def __init__(self, n = 4, remove_stopwords=False):
         # self.metric = evaluate.load("bleu", keep_in_memory=True, trust_remote_code=True)
         self.n = n
     
@@ -53,22 +59,6 @@ class METEOR(object):
         ref_strings = [' '.join(x) for x in ref]
         pred_strings = [' '.join(x) for x in pred]
         return self._compute(ref_strings, pred_strings)
-        
-"""
-BERTScore (https://arxiv.org/abs/1904.09675)
-"""
-class BERTSCORE(object):
-    def __init__(self, idf_sents=None, rescale = True, score = "f"):
-        self.metric = BERTScorer(lang = "en", rescale_with_baseline = rescale, idf = (idf_sents is not None), idf_sents = idf_sents)
-        if score == "precision": self.score_id = 0
-        elif score == "recall": self.score_id = 1
-        else: self.score_id = 2
-
-    def score(self, ref, pred):
-        ref_strings = [' '.join(x) for x in ref]
-        pred_strings = [' '.join(x) for x in pred]
-        return self.metric.score(cands = pred_strings, refs = ref_strings)[self.score_id].numpy()
-    
     
 class BERTSCORE(object):
     def __init__(self, idf_sents=None, rescale = False, score = "recall"):
