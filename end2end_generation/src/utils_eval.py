@@ -20,8 +20,11 @@ WER
 class WER(object):
     def __init__(self, use_score = True, remove_stopwords=False):
         self.use_score = use_score
+        self.remove_stopwords = remove_stopwords
     
     def score(self, ref, pred):
+        if self.remove_stopwords:
+            ref, pred = remove_stopwords(ref), remove_stopwords(pred)
         ref_strings = [' '.join(x) for x in ref]
         pred_strings = [' '.join(x) for x in pred]
         scores = []
