@@ -37,11 +37,11 @@ def language_evaluate_mask_with_sig(re, metrics, dataset_name='Huth', checkpoint
         re[mname] = np.array([metric.score(ref = [re['content_true_tokens'][i]], pred = [re['content_pred_tokens'][i]]) for i in range(len(re['content_pred_tokens']))])
     return re
 
-def load_metric():
+def load_metric(remove_stopwords):
     metrics = {}
-    metrics["WER"] = WER(use_score = True)
-    metrics["BLEU"] = BLEU(n = 1)
-    metrics["METEOR"] = METEOR()
+    metrics["WER"] = WER(use_score = True,remove_stopwords=remove_stopwords)
+    metrics["BLEU"] = BLEU(n = 1,remove_stopwords=remove_stopwords)
+    metrics["METEOR"] = METEOR(remove_stopwords=remove_stopwords)
     # if "BERT" in args.metrics: metrics["BERT"] = BERTSCORE(idf_sents = np.load(os.path.join(config.DATA_TEST_DIR, "idf_segments.npy")), rescale = False, score = "recall")
     return metrics
 
@@ -67,12 +67,12 @@ if __name__ == '__main__':
     for user in ['Huth_1', 'Huth_2', 'Huth_3']:
         result['content_pred_tokens'] = segment_data([item.strip().split() for item in result[user]])
         language_evaluate_mask_with_sig(result, metrics)
-        output_str = user + f": bleu_1: {'%.4f' % np.mean(result['BLEU'])} wer: {'%.4f' % np.mean(result['WER'])} meteor: {'%.4f' % np.mean(result['METEOR'])}"
+        output_str = user + f": bleu_1: {np.mean(result['BLEU']):.4f} wer: {np.mean(result['WER']):.4f} meteor: {np.mean(result['METEOR']):.4f}"
         print(output_str)
     
     # # evaluate permutated results
     # # It seems that when running Huth's code, the signal is permutated, but this is just what we want to test
-    # result_permutated = np.load("/home/bingxing2/home/scx7140/fmri/Brain-language-generation/data_lm/wheretheressmoke.npz")
+    # result_permutated = np.load("../../data_lm/wheretheressmoke.npz")
     # words = result_permutated['words']
     # times = result_permutated['times']
     # cutoffs = windows(times[0], times[-1], duration=20, step=20)
@@ -86,7 +86,7 @@ if __name__ == '__main__':
     # parser = argparse.ArgumentParser()
     # parser.add_argument('-file_name', type=str, required=False)
     # args = parser.parse_args()
-    # base_path = f'/home/bingxing2/home/scx7140/fmri/Brain-language-generation/paper/result/{args.file_name}.json'
+    # base_path = f'../../paper/result/{args.file_name}.json'
     # result = json.load(open(base_path))
     # result['content_true_tokens'] = segment_data([item.strip().split() for item in result['reference']])
     # for user in ['result']:

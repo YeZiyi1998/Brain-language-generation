@@ -96,11 +96,11 @@ def language_evaluate_mask_with_sig(re, metrics, dataset_name='Huth',token_based
         re[mname] = np.array([metric.score(ref = [re['content_true_tokens'][i]], pred = [re['content_pred_tokens'][i]]) for i in range(len(re['content_pred']))])
     return re
 
-def load_metric(remove_stopwords=False):
+def load_metric():
     metrics = {}
-    metrics["WER"] = WER(use_score = True, remove_stopwords=remove_stopwords)
-    metrics["BLEU"] = BLEU(n = 1,remove_stopwords=remove_stopwords)
-    metrics["METEOR"] = METEOR(remove_stopwords=remove_stopwords)
+    metrics["WER"] = WER(use_score = True, remove_stopwords=True)
+    metrics["BLEU"] = BLEU(n = 1)
+    metrics["METEOR"] = METEOR()
     # if "BERT" in args.metrics: metrics["BERT"] = BERTSCORE(idf_sents = np.load(os.path.join(config.DATA_TEST_DIR, "idf_segments.npy")), rescale = False, score = "recall")
     return metrics
 
