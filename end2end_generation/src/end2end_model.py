@@ -49,12 +49,7 @@ class End2End_model(Decoding_model):
         else:
             self.lm = LanguageModel(self.top_model, decoder_vocab)
             self.token_based = True
-    # 可行方法
-    # (1）brain + text prompt (截断) -> continuation
-    # (2) text prompt (截断) + brain + text prompt(截断) -> continuation
-    # (3) [brain + text prompt(截断)] +概率合并+ [text prompt] -> continuation
-    # (4) text prompt (brain fusion) -> continuation (暂不考虑)
-
+            
     def put_bs_into_cuda(self, additional_bs):
         additional_bs = additional_bs.expand(self.decoder.beam_width, -1, -1)
         if type(additional_bs) == list:
