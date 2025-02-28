@@ -21,7 +21,7 @@
     </a>
 </p>
 
-This is the official repo for our paper [Generative Language Recontsurction from Brain Recordings](https://arxiv.org/abs/2311.09889) published in Nature Communications Bioligy. Language generation from brain recordings is a novel approach that supports direct language generation with BCIs (brain-computer interfaces) without pre-defineng or pre-generating language candidates to select from.
+This is the official repo for our paper [Generative Language Recontsurction from Brain Recordings](https://arxiv.org/abs/2311.09889) accepted by Nature Communications Bioligy. Language generation from brain recordings is a novel approach that supports direct language generation with BCIs (brain-computer interfaces) without pre-defineng or pre-generating language candidates to select from.
 
 
 ## Quick Start
