@@ -11,10 +11,7 @@ class MLP(torch.nn.Module):
         max_seq_len = 5
         embedding_size = self.num_input
         self.args = args
-        if self.args['input_method'] == 'mask_input':
-            self.position_embedding = nn.Parameter(torch.empty(max_seq_len, num_classes), requires_grad=True)
-            nn.init.uniform_(self.position_embedding, -1, 1)
-        elif position_index:   
+        if position_index:   
             self.position_embedding = nn.Parameter(torch.empty(max_seq_len, embedding_size), requires_grad=True) # 
             nn.init.uniform_(self.position_embedding, -1, 1)
         net = nn.Sequential()
